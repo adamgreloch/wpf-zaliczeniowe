@@ -7,8 +7,6 @@ let ujemne_zero1 = wartosc_od_do (-1.0) 0.0;;
 let rozne_znaki1 = wartosc_od_do (-1.0) 1.0;;
 let duzo = wartosc_dokladnosc 777777.7 9999.9;;
 
-(*
-
 let a = wartosc_od_do (-1.) 1.            (* <-1, 1> *)
 let b = wartosc_dokladna (-1.)            (* <-1, -1> *)
 let c = podzielic b a                     (* (-inf -1> U <1 inf) *)
@@ -29,8 +27,6 @@ let q = plus n o                          (* (-inf, inf) *)
 let r = minus n n                         (* (-inf, inf) *)
 let s = wartosc_dokladnosc (-0.0001) 100. (* <-0.0002, 0> *)
 let t = razy n s;;                        (* (-inf, 0) *)
-
-*)
 
 let plus1 = pokaz (plus dodatnie_zero1 ujemne_zero1);;
 (* exp (-1., 1., 0) *)
@@ -92,8 +88,6 @@ let razy4 = pokaz (razy ujemne_zero1 rozne_znaki1);;
 let razy5 = pokaz (razy dodatnie_zero1 rozne_znaki1);;
 (* exp (-1., 1., 0) *)
 
-(*
-
 let podzielic1 = pokaz (podzielic jeden dodatnie_zero1);;
 (* exp (1., infinity, 2) *)
 
@@ -106,6 +100,4 @@ let podzielic2odw = pokaz (podzielic ujemne_zero1 jeden);;
 
 assert ((in_wartosc c (-1.)) && (in_wartosc c (-100000.)) && (in_wartosc c 1.)
 && (in_wartosc c 100000.));
-
-*)
 
