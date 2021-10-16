@@ -39,8 +39,7 @@ val sr_wartosc:  wartosc -> float
 val plus:      wartosc -> wartosc -> wartosc  
 val minus:     wartosc -> wartosc -> wartosc 
 val razy:      wartosc -> wartosc -> wartosc  
-val podzielic: wartosc -> wartosc -> wartosc                            
+(*val podzielic: wartosc -> wartosc -> wartosc                            *)
 
 (* pomocnicze *)
-val sgn: float -> float
-val pokaz: wartosc -> float * float * int
+val pokaz: wartosc -> float * float * float * float * int

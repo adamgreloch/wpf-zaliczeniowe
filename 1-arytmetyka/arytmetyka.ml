@@ -5,41 +5,42 @@
 
 open Float
 
-type wartosc = float * float * int;;
+type wartosc = float * float * float * float * int;;
 
 (*
     type wartosc:
 
-    (min, max, -1, 0, 1, 2)
-    trzecia wartosc ustala znak 0, jeśli któreś jest zawarte
+    (min1, max1, min2, max2, {-1, 0, 1, 2})
+    
+    Domyślnie liczby są zapisywane jako przedział (min1, max1) ale w przypadku
+    dzielenia może zdarzyć się, że wynikiem będzie suma przedziałów, a na to
+    wszystkie procedury również muszą być przygotowane.
+
+    Integer na końcu ustala status zera:
     -1: zawarte -0.0
      0: zawarte  0.0
     +1: zawarte +0.0
      2: brak zera
+
  *)
 
-(* pomocnicze *)
-let sgn n =
-    match n with
-    | 0.-> 0.
-    | _ -> (n /. abs(n));
-;;
+let pokaz (a, b, c, d, e) = (a, b, c, d, e);;
 
 (* konstruktory *)
 
 let wartosc_dokladnosc x p =
     (* Input: p>0 *)
-    if p > 0. then
+    if p >= 0. then
         if ((x *. (1. -. p))*.(x *. (1. +. p)) < 0.) then
-            (x *. (1. -. p), x *. (1. +. p), 0)
+            (x *. (1. -. p), x *. (1. +. p), nan, nan, 0)
         else
             if (classify_float (x -. p) = FP_subnormal && x +. p > 0.) then
-                (x *. (1. -. p), x *. (1. +. p), 1)
+                (x *. (1. -. p), x *. (1. +. p), nan, nan, 1)
             else
                 if (x -. p < 0. && classify_float (x +. p) = FP_subnormal) then
-                    (x *. (1. -. p), x *. (1. +. p), -1)
+                    (x *. (1. -. p), x *. (1. +. p), nan, nan, -1)
                 else
-                    (x *. (1. -. p), x *. (1. +. p), 2)
+                    (x *. (1. -. p), x *. (1. +. p), nan, nan, 2)
     else
         failwith "Podano niewłaściwe p. Czy na pewno było dodatnie?"
 ;;
@@ -52,125 +53,182 @@ let wartosc_od_do x y =
     in
     if x <= y then
         if (x *. y < 0.) then
-            (x, y, 0)
+            (x, y, nan, nan, 0)
         else
             if (czy_zero x && y > 0.) then
-                (x, y, 1)
+                (x, y, nan, nan, 1)
             else
                 if (x < 0. && czy_zero y) then
-                    (x, y, -1)
+                    (x, y, nan, nan, -1)
                 else
-                    (x, y, 2)
+                    (x, y, nan, nan, 2)
     else
         failwith "Ten przedział nie ma sensu"
 ;;
 
 let wartosc_dokladna x = 
     match x with
-    | 0. -> (x, x, 0)
-    | _ -> (x, x, 2)
+    | 0. -> (x, x, nan, nan, 0)
+    | _ -> (x, x, nan, nan, 2)
 ;;
 
 (* selektory *)
 
-let pokaz (a, b, c) = (a, b, c);;
-
-let in_wartosc (min, max, _) x =
-    if (min <= x && x <= max) then 
+let in_wartosc (min1, max1, min2, max2, zero) x =
+    if (zero = 0 && x = 0.) then true
+    else
+    if ((min1 <= x && x <= max1) || (min2 <= x && x <= max2)) then 
         true
     else
         false
 ;;
 
 (* TODO: sprawdzić, czy na pewno trzeba brać tu pod uwagę nan *)
-let min_wartosc (min, _, _) =
+let min_wartosc (min, _, _, _, _) =
     match classify_float min with
     | FP_nan | FP_infinite -> neg_infinity
     | _ -> min
 ;;
 
-let max_wartosc (_, max, _) =
-    match classify_float max with
+let max_wartosc (_, max1, _, max2, _) =
+    if (not (max2 = nan)) then
+        match classify_float max2 with
+        | FP_nan | FP_infinite -> infinity
+        | _ -> max2
+    else
+    match classify_float max1 with
     | FP_nan | FP_infinite -> infinity
-    | _ -> max
+    | _ -> max1
 ;;
 
-let sr_wartosc (min, max, _) =
-    if (min = neg_infinity && max = infinity) then
+let sr_wartosc (min, max1, _, max2, _) =
+    if (not (max2 = nan)) then
         nan
     else
-        (min +. max) /. 2.
+    if (min = neg_infinity && max1 = infinity) then
+        nan
+    else
+        (min +. max1) /. 2.
 ;;
 
-let plus (x_min, x_max, x_zero) (y_min, y_max, y_zero) =
-    let res_min = x_min +. y_min and res_max = x_max +. y_max
+let plus (x_min1, x_max1, x_min2, x_max2, x_zero) (y_min1, y_max1, y_min2,
+y_max2, y_zero) =
+    let res_min1 = x_min1 +. y_min1 and res_max1 = x_max1 +. y_max1
+    and res_min2 = x_min2 +. y_min2 and res_max2 = x_max2 +. y_max2
+    in
+    let sum zero = 
+        (* pomocnicza sumująca ew. nachodzące się przedziały i zwracająca
+           wartosc *)
+        if (res_min2 < res_max1) then
+            (res_min1, res_max2, nan, nan, zero)
+        else
+            (res_min1, res_max1, res_min2, res_max2, zero)
     in
     match (x_zero, y_zero) with
-    | (0, _) | (_, 0)       -> (res_min, res_max, 0)
-    | (1, -1) | (-1, 1)     -> (res_min, res_max, 0)
-    | (1, 1)                -> (res_min, res_max, 1)
-    | (1, 2) | (2, 1)       -> (res_min, res_max, 1)
-    | (-1, -1)              -> (res_min, res_max, -1)
-    | (-1, 2) | (2, -1)     -> (res_min, res_max, -1)
-    | (_,_)                 -> (res_min, res_max, 2)
+    | (0, _) | (_, 0)       -> sum 0
+    | (1, -1) | (-1, 1)     -> sum 0
+    | (1, 1)                -> sum 1
+    | (1, 2) | (2, 1)       -> sum 1
+    | (-1, -1)              -> sum (-1)
+    | (-1, 2) | (2, -1)     -> sum (-1)
+    | (_,_)                 -> sum 2
 ;;
 
-let minus (x_min, x_max, x_zero) (y_min, y_max, y_zero) =
-    if (y_min = 0. && y_max = 0.) then
-        (x_min, x_max, x_zero)
+let minus (x_min1, x_max1, x_min2, x_max2, x_zero) (y_min1, y_max1, y_min2,
+y_max2, y_zero) =
+    let res_min1 = x_min1 -. y_max1 and res_max1 = x_max1 -. y_min1
+    and res_min2 = x_min2 -. y_max2 and res_max2 = x_max2 -. y_min2
+    in
+    let sum zero = 
+        (* pomocnicza sumująca ew. nachodzące się przedziały i zwracająca
+           wartosc *)
+        if (res_min2 < res_max1) then
+            (res_min1, res_max2, nan, nan, zero)
+        else
+            (res_min1, res_max1, res_min2, res_max2, zero)
+    in
+    if (y_min1 = 0. && y_max1 = 0.) then
+        if (y_min2 = 0. && y_max2 = 0.) then
+            (x_min1, x_max1, x_min2, x_max2, x_zero)
+        else
+            (x_min1, x_max1, res_min2, res_max2, x_zero)
     else
-        let res_min = x_min -. y_max and res_max = x_max -. y_min
+        match (x_zero, y_zero) with
+        | (-1, 0)               -> sum 0
+        | (1, 0)                -> sum 0
+        | (_, _)                -> sum x_zero
+;;
+
+let razy (x_min1, x_max1, x_min2, x_max2, x_zero) (y_min1, y_max1, y_min2,
+y_max2, y_zero) =
+    if ((x_min1 = 0. && x_max1 = 0.) || (y_min1 = 0. && y_max1 = 0.)) then
+        (0., 0., nan, nan, 0)
+    else
+        let minimize a_min (b1, b2, b3, b4) =
+            min (min (a_min *. b1) (a_min *. b2)) (min (a_min *. b3) (a_min *. b4))
+        and maximize a_max (b1, b2, b3, b4) =
+            max (max (a_max *. b1) (a_max *. b2)) (max (a_max *. b3) (a_max *. b4))
+        in
+        let y = (y_min1, y_max1, y_min2, y_max2)
+        in
+        let res_min1 = minimize x_min1 y
+        and res_max1 = maximize x_max1 y
+        and res_min2 = minimize x_min2 y
+        and res_max2 = maximize x_max2 y
+        in
+        let sum zero = 
+            (* pomocnicza sumująca ew. nachodzące się przedziały i zwracająca
+               wartosc *)
+            if (res_min2 < res_max1) then
+                (res_min1, res_max2, nan, nan, zero)
+            else
+                (res_min1, res_max1, res_min2, res_max2, zero)
         in
         match (x_zero, y_zero) with
-        | (-1, 0)               -> (res_min, res_max, 0)
-        | (1, 0)                -> (res_min, res_max, 0)
-        | (_, _)                -> (res_min, res_max, x_zero)
+        | (0, _) | (_, 0)       -> sum 0
+        | (1, 1)                -> sum 1
+        | (-1, -1)              -> sum 1
+        | (1, 2) | (2, 1)       -> sum 1
+        | (1, -1) | (-1, 1)     -> sum (-1)
+        | (-1, 2) | (2, -1)     -> sum (-1)
+        | (_,_)                 -> sum 2
 ;;
 
-let razy (x_min, x_max, x_zero) (y_min, y_max, y_zero) =
-    if ((x_min = 0. && x_max = 0.) || (y_min = 0. && y_max = 0.)) then
-        (0., 0., 0)
-    else
-        let ff = (x_min *. y_min)
-        and fs = (x_min *. y_max)
-        and sf = (x_max *. y_min)
-        and ss = (x_max *. y_max)
-        in
-            let min1 = min ff fs
-            and min2 = min sf ss
-            and max1 = max ff fs
-            and max2 = max sf ss
-            in
-            let res_min = min min1 min2 and res_max = max max1 max2
-            in
-            match (x_zero, y_zero) with
-            | (0, _) | (_, 0)       -> (res_min, res_max, 0)
-            | (1, 1)                -> (res_min, res_max, 1)
-            | (-1, -1)              -> (res_min, res_max, 1)
-            | (1, 2) | (2, 1)       -> (res_min, res_max, 1)
-            | (1, -1) | (-1, 1)     -> (res_min, res_max, -1)
-            | (-1, 2) | (2, -1)     -> (res_min, res_max, -1)
-            | (_,_)                 -> (res_min, res_max, 2)
-;;
-
+(*
 let podzielic (x_min, x_max, x_zero) (y_min, y_max, y_zero) =
+    let sgn n =
+        match n with
+        | 0.-> 0
+        | _ -> (n /. abs(n))
+    in
     match (x_zero, y_zero) with
-    | (_, 0)  -> (nan, nan, -2)
+    | (_, 0)  ->
+            (neg_infinity, infinity, x_zero)
+            (*
+            (* dzielenie przez liczbę zawierającą obustronne 0.0. Pomijam
+               nieokreślone wartości przedziału. Wówczas
+                1. (-4,+8,0) / (-2,+2,0)  -> (-4, 4, 0)
+                2. (-4,-2,2) / (-2,+2,0)  -> (-2, 2, 0)
+                3. (2, 4, 2) / (-2,+2,0)  -> (-2, 2, 0) *)
+            if (sgn x_min *. sgn x_max < 0.) then (x_max /. y_min, max (x_min /. y_min) (x_max /. y_max), 0) else
+            if (sgn x_min < 0. && sgn x_max < 0.) then (x_min /. y_max, max (x_min /. y_min) (x_max /. y_max), 0) else
+            if (sgn x_min > 0. && sgn x_max > 0.) then (x_max /. y_min, x_max /. y_max, 0) else
+                (0., 0., 0)
+            *)
     | (_, -1) -> 
-            (* dzielenie przez (-1,-0.). Są następujące możliwości:
-                1. (-1,+1,_) / (-1,-0.)   -> (-inf, +inf, 0)
-                2. (-2,-1,_)             -> (1, +inf, 2)
-                3. ( 1, 2,_)             -> (-inf, -1, 2) *)
+            (* dzielenie przez np. (-1,-0.). Są następujące możliwości:
+                1. (-1,+1,0) / (-1,-0.)   -> (-inf, +inf, 0)
+                2. (-2,-1,2)              -> (1, +inf, 2)
+                3. ( 1, 2,2)              -> (-inf, -1, 2) *)
             if (sgn x_min *. sgn x_max < 0.) then (neg_infinity, infinity, 0) else
             if (sgn x_min < 0. && sgn x_max < 0.) then (x_min /. y_min, infinity, 2) else
             if (sgn x_min > 0. && sgn x_max > 0.) then (neg_infinity, x_max /.  y_min, 2) else
                 (0., 0., 0)
     | (_, 1)  ->
-            (* dzielenie przez (0.,1.). Są następujące możliwości:
-                1. (-1,+1,_) / (0.,1.)   -> (-inf, +inf, 0)
+            (* dzielenie przez np. (0.,1.). Są następujące możliwości:
+                1. (-1,+1,_) / (0.,1.)    -> (-inf, +inf, 0)
                 2. (-2,-1,_)              -> (-inf, -1, 2)
                 3. ( 1, 2,_)              -> (1, +inf, 2) *)
-
             if (sgn x_min *. sgn x_max < 0.) then (neg_infinity, infinity, 0) else
             if (sgn x_min < 0. && sgn x_max < 0.) then (neg_infinity, x_max /. y_max, 2) else
             if (sgn x_min > 0. && sgn x_max > 0.) then ( x_min /.  y_max, infinity, 2) else
@@ -188,3 +246,4 @@ let podzielic (x_min, x_max, x_zero) (y_min, y_max, y_zero) =
                 in
                 (min min1 min2, max max1 max2, x_zero)
 ;;
+*)

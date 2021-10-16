@@ -7,6 +7,30 @@ let ujemne_zero1 = wartosc_od_do (-1.0) 0.0;;
 let rozne_znaki1 = wartosc_od_do (-1.0) 1.0;;
 let duzo = wartosc_dokladnosc 777777.7 9999.9;;
 
+(*
+
+let a = wartosc_od_do (-1.) 1.            (* <-1, 1> *)
+let b = wartosc_dokladna (-1.)            (* <-1, -1> *)
+let c = podzielic b a                     (* (-inf -1> U <1 inf) *)
+let d = plus c a                          (* (-inf, inf) *)
+let e = wartosc_dokladna 0.               (* <0, 0> *)
+let f = razy c e                          (* <0, 0> *)
+let g = razy d e                          (* <0, 0> *)
+let h = wartosc_dokladnosc (-10.) 50.     (* <-15, -5> *)
+let i = podzielic h e                     (* nan, przedzial pusty*)
+let j = wartosc_od_do (-6.) 5.            (* <-6, 5> *)
+let k = razy j j                          (* <-30, 36> *)
+let l = plus a b                          (* <-2, 0> *)
+let m = razy b l                          (* <0, 2> *)
+let n = podzielic l l                     (* <0, inf) *)
+let o = podzielic l m                     (* (-inf, 0) *)
+let p = razy o a                          (* (-inf, inf) *)
+let q = plus n o                          (* (-inf, inf) *)
+let r = minus n n                         (* (-inf, inf) *)
+let s = wartosc_dokladnosc (-0.0001) 100. (* <-0.0002, 0> *)
+let t = razy n s;;                        (* (-inf, 0) *)
+
+*)
 
 let plus1 = pokaz (plus dodatnie_zero1 ujemne_zero1);;
 (* exp (-1., 1., 0) *)
@@ -68,7 +92,20 @@ let razy4 = pokaz (razy ujemne_zero1 rozne_znaki1);;
 let razy5 = pokaz (razy dodatnie_zero1 rozne_znaki1);;
 (* exp (-1., 1., 0) *)
 
+(*
+
 let podzielic1 = pokaz (podzielic jeden dodatnie_zero1);;
 (* exp (1., infinity, 2) *)
 
+let podzielic1odw = pokaz (podzielic dodatnie_zero1 jeden);;
+
 let podzielic2 = pokaz (podzielic jeden ujemne_zero1);; 
+
+let podzielic2odw = pokaz (podzielic ujemne_zero1 jeden);; 
+(* exp (neg_infinity., -1, 2) *)
+
+assert ((in_wartosc c (-1.)) && (in_wartosc c (-100000.)) && (in_wartosc c 1.)
+&& (in_wartosc c 100000.));
+
+*)
+
