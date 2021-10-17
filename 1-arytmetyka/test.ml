@@ -99,5 +99,47 @@ let podzielic2odw = pokaz (podzielic ujemne_zero1 jeden);;
 (* exp (neg_infinity., -1, 2) *)
 
 assert ((in_wartosc c (-1.)) && (in_wartosc c (-100000.)) && (in_wartosc c 1.)
-&& (in_wartosc c 100000.));
+&& (in_wartosc c 100000.));;
 
+let sgn n =
+    match n with
+    | 0. -> 0.
+    | _  -> (n /. abs_float(n))
+;;
+
+let testuj_min = 
+    let minimize a_min (b1, b2, b3, b4) =
+        if (classify_float b3 = FP_nan && classify_float b4 = FP_nan) then
+            if ((a_min = infinity && (sgn b1 < 0. || sgn b2 < 0.))
+                    ||
+                    (a_min = neg_infinity && (sgn b1 > 0. || sgn b2 > 0.))
+                )
+                then
+                    neg_infinity
+            else
+                min (a_min *. b1) (a_min *. b2)
+        else
+            (* TODO rozszerzyć na dwa przedzialy *)
+            min (min (a_min *. b1) (a_min *. b2)) (min (a_min *. b3) (a_min *. b4))
+    in
+    let y = (-0.0002, 0., nan, nan) in minimize infinity y;;
+
+let testuj_max = 
+    let maximize a_max (b1, b2, b3, b4) =
+            if (classify_float b3 = FP_nan && classify_float b4 = FP_nan) then
+                if (classify_float a_max = FP_infinite) then
+                    if ((a_max = infinity && (sgn b1 > 0. || sgn b2 > 0.))
+                            ||
+                            (a_max = neg_infinity && (sgn b1 < 0. || sgn b2 < 0.))
+                        )
+                    then
+                        infinity
+                    else
+                        0.
+                else
+                    max (a_max *. b1) (a_max *. b2)
+            else
+                (* TODO rozszerzyć na dwa przedzialy *)
+                max (max (a_max *. b1) (a_max *. b2)) (max (a_max *. b3) (a_max *. b4))
+    in
+    let y = (-0.0002, 0., nan, nan) in maximize infinity y;;
