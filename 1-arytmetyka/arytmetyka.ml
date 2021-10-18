@@ -17,8 +17,6 @@ let ( *. ) a b =
         a *. b
 ;;
 
-(* TODO: Może być potrzebna redefinicja dodawania też *)
-
 type przedzial =
     {
         min: float;
@@ -75,8 +73,12 @@ let odwrotnosc x =
         else
             {fst = {min = 1. /. x.snd.min; max = 1. /. x.fst.max}; snd = pusty}
     else
-        {fst = {min = neg_infinity; max = 1. /. x.fst.max}; snd = {min = 1. /.
-        x.fst.min; max = infinity}}
+        if (sgn x.fst.min *. sgn x.fst.max < 0.) then
+            {fst = {min = neg_infinity; max = 1. /. x.fst.min}; snd = {min = 1. /.
+            x.fst.max; max = infinity}}
+        else
+            {fst = {min = neg_infinity; max = 1. /. x.fst.max}; snd = {min = 1. /.
+            x.fst.min; max = infinity}}
 ;;
 
 (** Zwraca przedział R z wykluczonym przedziałem x *)
@@ -87,12 +89,18 @@ let wyklucz x =
   
 (** Przyjmuje dwuprzedziałową liczbę i zwraca złączony jeden, jeśli przedziały
 się przecinają *)
-let suma w =
+let zlacz w =
     if (w.fst.max >= w.snd.min) then
         {fst = {min = w.fst.min; max = w.snd.max};
          snd = pusty}
     else
         w
+;;
+
+(** Zwraca sumę (w rozumieniu teorii zbiorów) dwóch dwuprzedziałowych liczb *)
+let suma w z =
+    zlacz {fst = {min = neg_infinity; max = max w.fst.max z.fst.max};
+           snd = {min = min w.snd.min z.snd.min; max = infinity}}
 ;;
 
 let pokaz x = (x.fst.min, x.fst.max, x.snd.min, x.snd.max);;
@@ -143,18 +151,15 @@ let sr_wartosc w =
 
 (* ------------------------------ Operatory ------------------------------- *)
 
-let plus w z =
+let rec plus w z =
     match (czy_dwa w, czy_dwa z) with
     | (true, true) ->
             (* suma dwóch wartości dwuprzedziałowych daje R *)
             {fst = {min = neg_infinity; max = infinity}; snd = pusty}
-    | (true, false) ->
-            (* TODO: upewnić się *)
-            suma {fst = {min = neg_infinity; max = w.fst.max +. z.fst.max};
-             snd = {min = w.snd.min +. z.fst.min; max = infinity}}
+    | (true, false) -> plus z w
     | (false, true) ->
-            suma {fst = {min = neg_infinity; max = z.fst.max +. w.fst.max};
-             snd = {min = z.snd.min +. w.fst.min; max = infinity}}
+            zlacz {fst = {min = neg_infinity; max = z.fst.max +. w.fst.max};
+            snd = {min = z.snd.min +. w.fst.min; max = infinity}}
     | (false, false) ->
             {fst = {min = w.fst.min +. z.fst.min; max = w.fst.max +. z.fst.max};
              snd = pusty};
@@ -167,34 +172,39 @@ let minus w z =
             {fst = {min = neg_infinity; max = infinity}; snd = pusty}
     | (true, false) ->
             (* TODO: upewnić się *)
-            suma {fst = {min = neg_infinity; max = w.fst.max -. z.fst.max};
-             snd = {min = w.snd.min -. z.fst.min; max = infinity}}
+            zlacz {fst = {min = neg_infinity; max = w.fst.max -. z.fst.max};
+            snd = {min = w.snd.min -. z.fst.min; max = infinity}}
     | (false, true) ->
             (* TODO: sprawdzić czy na pewno. Jeśli na pewno to połączyć z
                (true, true) *)
-            suma {fst = {min = neg_infinity; max = infinity}; snd = pusty}
+            {fst = {min = neg_infinity; max = infinity}; snd = pusty}
     | (false, false) ->
             {fst = {min = w.fst.min -. z.fst.max; max = w.fst.max -. z.fst.min};
              snd = pusty}
 ;;
 
-let razy w z =
+let rec razy w z =
     match (czy_dwa w, czy_dwa z) with
     | (true, true) ->
-            (* iloczyn dwóch wartości dwuprzedziałowych daje R *)
-            {fst = {min = neg_infinity; max = infinity}; snd = pusty}
-    | (true, false) ->
-            (* TODO: zrobić zaraz eksperyment i złączyć oba te patterny
-               kilkoma minimum *)
-            suma {fst = {min = neg_infinity *. abs(z.fst.max); max = w.fst.max *. z.fst.max};
-             snd = {min = w.snd.min *. z.fst.min; max = infinity *.
-             abs(z.fst.min)}}
+            odwrotnosc (razy (odwrotnosc w) (odwrotnosc z))
+    | (true, false) -> razy z w
     | (false, true) ->
-            let a = w.fst.max *. z.fst.max
-            and b = w.fst.min *. z.snd.min
-            in
-                suma {fst = {min = neg_infinity *. abs(w.fst.max); max = min a b};
-                 snd = {min = max a b; max = infinity *.  abs(w.fst.min)}}
+            if (w.fst.min = w.fst.max) then
+                if (w.fst.min = 0.) then
+                    {fst = {min = 0.; max = 0.}; snd = pusty}
+                else
+                    let a = z.fst.max *. w.fst.min
+                    and b = z.snd.min *. w.fst.min
+                    in
+                        {fst = {min = neg_infinity; max = min a b};
+                         snd = {min = max a b; max = infinity}}
+            else
+                if (sgn w.fst.min *. sgn w.fst.max < 0.) then
+                    {fst = {min = neg_infinity; max = infinity};
+                     snd = pusty}
+                else
+                    suma (razy (wartosc_dokladna w.fst.min) z) (razy (wartosc_dokladna
+                    w.fst.max) z)
     | (false, false) ->
             let a_min = min (w.fst.min *. z.fst.min) (w.fst.min *. z.fst.max)
             and b_min = min (w.fst.max *. z.fst.min) (w.fst.max *. z.fst.max)
@@ -206,7 +216,7 @@ let razy w z =
 ;;
 
 let podzielic w z =
-    if (z.fst.min = 0. && z.fst.max = 0.) then
+    if (z.fst.min = 0. && z.fst.max = 0. || czy_pusty w || czy_pusty z) then
         {fst = pusty; snd = pusty}
     else
         match (czy_dwa w, czy_dwa z) with
@@ -214,12 +224,9 @@ let podzielic w z =
                 (* iloczyn dwóch wartości dwuprzedziałowych daje R *)
                 {fst = {min = neg_infinity; max = infinity}; snd = pusty}
         | (true, false) ->
-                {fst = {min = neg_infinity; max = w.fst.max /. z.fst.max};
-                 snd = {min = w.snd.min /. z.fst.min; max = infinity}}
+                let w = odwrotnosc w in odwrotnosc (razy w z)
         | (false, true) ->
                 let z = odwrotnosc z in wyklucz (razy w z)
-                (* {fst = {min = neg_infinity; max = z.fst.max /. w.fst.max};
-                 snd = {min = z.snd.min /. w.fst.min; max = infinity}} *)
         | (false, false) ->
                 let part_b =
                     if (sgn z.fst.min *. sgn z.fst.max > 0.) then
@@ -236,6 +243,8 @@ let podzielic w z =
                          snd = pusty}
                 in razy w part_b
 ;;
+
+(* -------------------------------- Testy --------------------------------- *)
 
 let a = wartosc_od_do (-1.) 1.            (* <-1, 1> *)
 let b = wartosc_dokladna (-1.)            (* <-1, -1> *)
@@ -288,4 +297,116 @@ let i = plus f g;;    (* (-inf, inf) *)
 assert ((in_wartosc f 0.25, in_wartosc f 0.26, in_wartosc f 0.49, in_wartosc f 0.50)=(true, false, false, true));
 assert ((min_wartosc h, max_wartosc h, is_nan (sr_wartosc h), in_wartosc h 0.) = (neg_infinity, infinity, true, true));
 assert ((min_wartosc h, max_wartosc h, is_nan (sr_wartosc h), in_wartosc h 0.3) = (neg_infinity, infinity, true, true));;
+
+let jed = wartosc_dokladna 1.
+let a = wartosc_od_do 1. 4.     (* <1.0, 4.0> *)
+let b = wartosc_od_do (-.2.) 3. (* <-2.0, 3.0> *)
+let c = podzielic a b           (* (-inf, -1/2> U <1/3, inf) *)
+let d = podzielic c b           (* (-inf, -1/6> U <1/9, inf) *)
+let e = plus d jed              (* (-inf, 5/6> U <10/9, inf) *)
+let f = sr_wartosc (podzielic jed (wartosc_dokladna 9.));; (* 1/9 *)
+assert (is_nan (sr_wartosc d));
+assert (in_wartosc d 0.12);
+assert (not (in_wartosc d 0.));
+assert (not (in_wartosc d (-0.125)));
+assert (in_wartosc d f);
+assert (not (in_wartosc e 1.));;
+
+let a = wartosc_od_do (-2.) 3.
+let b = wartosc_od_do 2. 3.
+let c = podzielic b a
+
+let rec iteruj f n acc = match n with
+    | 0 -> acc
+    | n when n > 0 -> iteruj f (n-1) (f acc acc)
+    | _ -> acc
+
+    let x = iteruj razy 10 c;;
+assert (not (in_wartosc x 0.));;
+
+let a = sr_wartosc (
+    podzielic (
+        wartosc_od_do (0.000000) (0.000000) )
+        ( podzielic
+            ( wartosc_od_do (-7.600000) (-5.200000) )
+            ( plus (
+                podzielic (
+                    wartosc_dokladnosc (-8.400000) (6.000000) )
+                    ( wartosc_dokladna (0.000000) ) )
+                ( plus (
+                    wartosc_dokladna (-2.000000) )
+                    ( plus (
+                        wartosc_od_do (-2.600000) (-1.400000) )
+                        ( wartosc_od_do (-8.200000) (2.400000) ) ) ) ) ) ) ;;
+assert ((classify_float a) == FP_nan);;
+
+let a =
+    in_wartosc
+    ( plus
+        ( wartosc_dokladna (-0.8) )
+        ( plus
+            ( podzielic
+                ( wartosc_od_do (-8.2) (3.2) )
+                ( minus
+                    ( plus
+                        ( minus
+                            ( wartosc_dokladnosc (-0.8) (1.2) )
+                            ( wartosc_dokladna (0.8) ) )
+                        ( wartosc_od_do (-0.6) (1.4) ) )
+                    ( minus
+                        ( wartosc_dokladnosc (-0.6) (0.8) )
+                        ( wartosc_od_do (-7.8) (0.0) ) ) ) )
+            ( wartosc_dokladna (-5.0) ) ) )
+    (-7.8)
+;;
+assert (a = true);;
+
+let eps = 1e-6;;
+
+let a = wartosc_od_do 3. 7.;;                        (* [3., 7.]                      *)
+
+assert(min_wartosc a = 3.0);;
+assert(max_wartosc a = 7.0);;
+assert(in_wartosc a 4.);;
+assert(not (in_wartosc a 2.));;
+
+let b = wartosc_od_do (-2.) 5.;;                     (* [-2., 5.]                     *)
+
+assert(sr_wartosc b = 1.5);;
+assert(min_wartosc b = -2.);;
+assert(max_wartosc b = 5.);;
+assert(in_wartosc b (-0.));;
+
+let c = podzielic a b;;                              (* [-inf, -1.5] U [0.6, inf]     *)
+
+assert(not (in_wartosc c 0.));;
+assert(in_wartosc c 100.);;
+
+let d = podzielic c b;;                              (* [-inf, -0.3] U [0.12, inf]    *)
+
+assert(compare (sr_wartosc d) nan = 0);;
+assert(in_wartosc d (-3. /. 10. -. eps));;
+assert(not (in_wartosc d (-3. /. 10. +. eps)));;
+assert(max_wartosc d = infinity);;
+assert(min_wartosc d = neg_infinity);;
+
+let e = plus d (wartosc_dokladna 2.);;               (* [-inf, 1.7] U [2.12, inf]     *)
+
+assert(in_wartosc e 0.);;
+assert(in_wartosc e 1.7);;
+assert(in_wartosc e 2.12);;
+assert(not (in_wartosc e 1.700000000001));;
+assert(not (in_wartosc e 2.119999999999));;
+
+let f = razy d b;;                                   (* [-inf, inf]                   *)
+
+assert(in_wartosc f 1000000.231232333);;
+assert(in_wartosc f (-3.14159));;
+assert(min_wartosc f = neg_infinity);;
+assert(max_wartosc f = infinity);;
+assert(compare (sr_wartosc f) nan = 0);;
+assert(in_wartosc f (-0.2));;
+assert(in_wartosc f (0.11));;
+assert(in_wartosc f 0.0);;
+assert(in_wartosc f (-0.0));;
 
