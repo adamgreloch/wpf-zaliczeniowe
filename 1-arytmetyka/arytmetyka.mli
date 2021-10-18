@@ -40,6 +40,4 @@ val minus:     wartosc -> wartosc -> wartosc
 val razy:      wartosc -> wartosc -> wartosc  
 val podzielic: wartosc -> wartosc -> wartosc
 
-(* pomocnicze *)
-val pokaz: wartosc -> float * float * float * float * int
-val dopelnienie: float -> float -> wartosc                            
+val pokaz: wartosc -> float * float * float * float
