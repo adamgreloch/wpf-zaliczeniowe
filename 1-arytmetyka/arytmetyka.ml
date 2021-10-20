@@ -1,12 +1,33 @@
 (*       **********************************************************         *)
 (*              Zadanie o arytmetyce niedokładnych wartości.                *)
-(*              Kod: Adam Greloch                                           *)
-(*              Review:                                                     *)
+(*              Kod: Adam Greloch (438473)                                  *)
+(*              Review: Marcin Żołek (438836)                               *)
 (*       **********************************************************         *)
 
 (* ----------------- Definicje typów i funkcje wewnętrzne ----------------- *)
 
 open Float
+
+(** 
+    Podstawowy typ przechowywania niedokładnych wartości obsługujący
+    dwuprzedziałowość. Wartość dwuprzedziałowa zawsze będzie zbiorem R z
+    wyłączeniem określonego przedziału [a,b], dlatego wystarczy przechowywać
+    sam przedział [min, max] i określić, czy jest to przedział liczby (dwa =
+    false) czy jego dopełnienie (dwa = true).
+*)
+type wartosc =
+    {
+        min: float;
+        max: float;
+        dwa: bool
+    }
+
+let pusty =
+    {
+        min = nan;
+        max = nan;
+        dwa = false
+    }
 
 (** Redefinicja operacji mnożenia, uwzględniająca dla uproszczenia
 (neg_)infinity * 0.0 = 0.0. *)
@@ -17,93 +38,46 @@ let ( *. ) a b =
         a *. b
 ;;
 
-type przedzial =
-    {
-        min: float;
-        max: float
-    }
-
-let pusty =
-    {
-        min = nan;
-        max = nan
-    }
-
-(** 
-    Podstawowy typ przechowywania niedokładnych wartości, składający się z
-    dwóch przedziałów: `fst` i `snd`. Definiując dwa przedziały zapobiegamy
-    utracie informacji podczas dzielenia, którego wynikiem może okazać się
-    dopełnienie przedziału. Warto zauważyć, że wartość dwuprzedziałowa zawsze
-    będzie tak naprawdę zbiorem R z wyłączeniem określonego przedziału <a,b>.
-*)
-type wartosc = 
-    {
-        fst: przedzial;
-        snd: przedzial
-    }
-
-(** Sprawdza, czy dany x: wartość jest dwuprzedziałowy *)
-let czy_dwa x =
-    if (classify_float x.snd.min = FP_nan) then
-        false
-    else
-        true
-;;
-
-(** Sprawdza, czy dany x: wartość jest pusty *)
-let czy_pusty x =
-    if (classify_float x.fst.min = FP_nan) then
-        true
-    else
-        false
-;;
 
 (** Zwraca znak floata *)
 let sgn n =
-    match n with
-    | 0. -> 0.
+    match classify_float n with
+    | FP_infinite when n = infinity -> 1.
+    | FP_infinite -> (-1.)
+    | FP_zero -> 0.
     | _  -> (n /. abs_float(n))
 ;;
 
+(** Sprawdza, czy x: wartosc jest zbiorem pustym *)
+let czy_pusty x = classify_float x.min = FP_nan;;
+
 (** Zwraca odwrotność wartości *)
 let odwrotnosc x =
-    if (czy_dwa x) then
-        if (sgn x.snd.min *. sgn x.fst.max < 0.) then
-            {fst = {min = 1. /. x.fst.max; max = 1. /. x.snd.min}; snd = pusty}
-        else
-            {fst = {min = 1. /. x.snd.min; max = 1. /. x.fst.max}; snd = pusty}
-    else
-        if (sgn x.fst.min *. sgn x.fst.max < 0.) then
-            {fst = {min = neg_infinity; max = 1. /. x.fst.min}; snd = {min = 1. /.
-            x.fst.max; max = infinity}}
-        else
-            {fst = {min = neg_infinity; max = 1. /. x.fst.max}; snd = {min = 1. /.
-            x.fst.min; max = infinity}}
+    let a = 1. /. x.min and b = 1. /. x.max in
+    {min = min a b; max = max a b; dwa = not x.dwa}
 ;;
 
-(** Zwraca przedział R z wykluczonym przedziałem x *)
-let wyklucz x =
-    {fst = {min = neg_infinity; max = x.fst.min};
-     snd = {min = x.fst.max; max = infinity}}
-;;
+(** Zwraca przeciwność wartości *)
+let przeciwnosc x = {min = (-1.) *. x.max; max = (-1.) *. x.min; dwa = x.dwa};;
+
+(** Zwraca dopełnienie przedziału x *)
+let dopelnienie x = {min = x.min; max = x.max; dwa = not x.dwa};;
   
 (** Przyjmuje dwuprzedziałową liczbę i zwraca złączony jeden, jeśli przedziały
 się przecinają *)
 let zlacz w =
-    if (w.fst.max >= w.snd.min) then
-        {fst = {min = w.fst.min; max = w.snd.max};
-         snd = pusty}
+    if (czy_pusty w) then
+        pusty
+    else
+    if (w.min >= w.max) then
+        if (w.dwa) then {min = neg_infinity; max = infinity; dwa = false}
+        else {min = w.min; max = w.max; dwa = false}
     else
         w
 ;;
 
 (** Zwraca sumę (w rozumieniu teorii zbiorów) dwóch dwuprzedziałowych liczb *)
-let suma w z =
-    zlacz {fst = {min = neg_infinity; max = max w.fst.max z.fst.max};
-           snd = {min = min w.snd.min z.snd.min; max = infinity}}
-;;
-
-let pokaz x = (x.fst.min, x.fst.max, x.snd.min, x.snd.max);;
+let suma w z = zlacz {min = max w.min z.min; max = min w.max z.max; dwa = true};;
 
 (* ----------------------------- Konstruktory ----------------------------- *)
 
@@ -111,136 +85,121 @@ let wartosc_dokladnosc x p =
     let a = x *. (1. -. 0.01 *. p)
     and b = x *. (1. +. 0.01 *. p)
     in
-    {fst = {min = min a b; max = max a b}; snd = pusty}
+    {min = min a b; max = max a b; dwa = false}
 ;;
 
+let wartosc_od_do x y = {min = x; max = y; dwa = false};;
 
-let wartosc_od_do x y =
-    {fst = {min = x; max = y}; snd = pusty}
-;;
-
-let wartosc_dokladna x = 
-    {fst = {min = x; max = x}; snd = pusty}
-;;
+let wartosc_dokladna x = {min = x; max = x; dwa = false};;
 
 (* ------------------------------ Selektory ------------------------------- *)
 
 let in_wartosc w x =
-    if (w.fst.min <= x && x <= w.fst.max || w.snd.min <= x && x <= w.snd.max)
+    if (w.min <= x && x <= w.max && not w.dwa)
     then
         true
     else
-        false
+        if ((x <= w.min || w.max <= x) && w.dwa)
+        then
+            true
+        else
+            false
 ;;
 
-let min_wartosc w = w.fst.min;;
+let min_wartosc w = if w.dwa then neg_infinity else w.min;;
 
-let max_wartosc w =
-    if (czy_dwa w) then
-        w.snd.max
-    else
-        w.fst.max
-;;
+let max_wartosc w = if w.dwa then infinity else w.max;;
 
-let sr_wartosc w =
-    if (czy_dwa w) then
-        nan
-    else
-        (w.fst.min +. w.fst.max) /. 2.
-;;
+let sr_wartosc w = if w.dwa then nan else (w.min +. w.max) /. 2.;;
 
 (* ------------------------------ Operatory ------------------------------- *)
 
 let rec plus w z =
-    match (czy_dwa w, czy_dwa z) with
+    match (w.dwa, z.dwa) with
     | (true, true) ->
             (* suma dwóch wartości dwuprzedziałowych daje R *)
-            {fst = {min = neg_infinity; max = infinity}; snd = pusty}
+            {min = neg_infinity; max = infinity; dwa = false}
     | (true, false) -> plus z w
     | (false, true) ->
-            zlacz {fst = {min = neg_infinity; max = z.fst.max +. w.fst.max};
-            snd = {min = z.snd.min +. w.fst.min; max = infinity}}
+            zlacz {min = z.min +. w.max; max = z.max +. w.min; dwa = true}
     | (false, false) ->
-            {fst = {min = w.fst.min +. z.fst.min; max = w.fst.max +. z.fst.max};
-             snd = pusty};
+            {min = w.min +. z.min; max = w.max +. z.max; dwa = false}
 ;;
 
 let minus w z =
-    match (czy_dwa w, czy_dwa z) with
+    match (w.dwa, z.dwa) with
     | (true, true) ->
             (* różnica dwóch wartości dwuprzedziałowych daje R *)
-            {fst = {min = neg_infinity; max = infinity}; snd = pusty}
-    | (true, false) ->
-            (* TODO: upewnić się *)
-            zlacz {fst = {min = neg_infinity; max = w.fst.max -. z.fst.max};
-            snd = {min = w.snd.min -. z.fst.min; max = infinity}}
-    | (false, true) ->
-            (* TODO: sprawdzić czy na pewno. Jeśli na pewno to połączyć z
-               (true, true) *)
-            {fst = {min = neg_infinity; max = infinity}; snd = pusty}
+            {min = neg_infinity; max = infinity; dwa = false}
+    | (false, true) | (true, false) ->
+            plus w (przeciwnosc z)
     | (false, false) ->
-            {fst = {min = w.fst.min -. z.fst.max; max = w.fst.max -. z.fst.min};
-             snd = pusty}
+            {min = w.min -. z.max; max = w.max -. z.min; dwa = false}
 ;;
 
 let rec razy w z =
-    match (czy_dwa w, czy_dwa z) with
-    | (true, true) ->
-            odwrotnosc (razy (odwrotnosc w) (odwrotnosc z))
-    | (true, false) -> razy z w
-    | (false, true) ->
-            if (w.fst.min = w.fst.max) then
-                if (w.fst.min = 0.) then
-                    {fst = {min = 0.; max = 0.}; snd = pusty}
+    if (czy_pusty w || czy_pusty z) then
+        pusty
+    else
+        match (w.dwa, z.dwa) with
+        | (true, true) ->
+                odwrotnosc (razy (odwrotnosc w) (odwrotnosc z))
+        | (true, false) -> razy z w
+        | (false, true) ->
+                (* dać komentarz odnośnie tej rekurencji *)
+                if (w.min = w.max) then
+                    if (w.min = 0.) then
+                        {min = 0.; max = 0.; dwa = false}
+                    else
+                        let a = z.min *. w.min
+                        and b = z.max *. w.min
+                        in
+                            {min = min a b; max = max a b; dwa = true}
                 else
-                    let a = z.fst.max *. w.fst.min
-                    and b = z.snd.min *. w.fst.min
-                    in
-                        {fst = {min = neg_infinity; max = min a b};
-                         snd = {min = max a b; max = infinity}}
-            else
-                if (sgn w.fst.min *. sgn w.fst.max < 0.) then
-                    {fst = {min = neg_infinity; max = infinity};
-                     snd = pusty}
-                else
-                    suma (razy (wartosc_dokladna w.fst.min) z) (razy (wartosc_dokladna
-                    w.fst.max) z)
-    | (false, false) ->
-            let a_min = min (w.fst.min *. z.fst.min) (w.fst.min *. z.fst.max)
-            and b_min = min (w.fst.max *. z.fst.min) (w.fst.max *. z.fst.max)
-            and a_max = max (w.fst.min *. z.fst.min) (w.fst.min *. z.fst.max)
-            and b_max = max (w.fst.max *. z.fst.min) (w.fst.max *. z.fst.max)
-            in
-                {fst = {min = min a_min b_min; max = max a_max b_max};
-                 snd = pusty}
+                    if (sgn w.min *. sgn w.max < 0.) then
+                        {min = neg_infinity; max = infinity; dwa = false}
+                    else
+                        suma (razy (wartosc_dokladna w.min) z) (razy (wartosc_dokladna
+                        w.max) z)
+        | (false, false) ->
+                let a_min = min (w.min *. z.min) (w.min *. z.max)
+                and b_min = min (w.max *. z.min) (w.max *. z.max)
+                and a_max = max (w.min *. z.min) (w.min *. z.max)
+                and b_max = max (w.max *. z.min) (w.max *. z.max)
+                in
+                    {min = min a_min b_min; max = max a_max b_max; dwa = false}
 ;;
 
-let podzielic w z =
-    if (z.fst.min = 0. && z.fst.max = 0. || czy_pusty w || czy_pusty z) then
-        {fst = pusty; snd = pusty}
+let rec podzielic w z =
+    if (z.min = 0. && z.max = 0. || czy_pusty w || czy_pusty z) then
+        pusty
+    else if (z.min = neg_infinity && z.max = infinity) then
+        if (w.min = 0. && w.max = 0.) then
+            wartosc_dokladna 0.
+        else
+            {min = neg_infinity; max = infinity; dwa = false}
     else
-        match (czy_dwa w, czy_dwa z) with
+        match (w.dwa, z.dwa) with
         | (true, true) ->
                 (* iloczyn dwóch wartości dwuprzedziałowych daje R *)
-                {fst = {min = neg_infinity; max = infinity}; snd = pusty}
+                {min = neg_infinity; max = infinity; dwa = false}
         | (true, false) ->
-                let w = odwrotnosc w in odwrotnosc (razy w z)
+                odwrotnosc (razy (odwrotnosc w) z)
         | (false, true) ->
-                let z = odwrotnosc z in wyklucz (razy w z)
+                if (in_wartosc z 0.) then
+                    dopelnienie (razy w (odwrotnosc z))
+                else
+                    razy w (odwrotnosc z)
         | (false, false) ->
                 let part_b =
-                    if (sgn z.fst.min *. sgn z.fst.max > 0.) then
-                        {fst = {min = 1. /. z.fst.max; max = 1. /. z.fst.min};
-                         snd = pusty}
-                    else if (sgn z.fst.min *. sgn z.fst.max < 0.) then
-                        {fst = {min = neg_infinity; max = 1. /. z.fst.min};
-                         snd = {min = 1. /. z.fst.max; max = infinity}}
-                    else if (z.fst.min = 0.) then
-                        {fst = {min = 1. /. z.fst.max; max = infinity};
-                         snd = pusty}
+                    if (sgn z.min *. sgn z.max > 0.) then
+                        {min = 1. /. z.max; max = 1. /. z.min; dwa = false}
+                    else if (sgn z.min *. sgn z.max < 0.) then
+                        {min = 1. /. z.min; max = 1. /. z.max; dwa = true}
+                    else if (z.min = 0.) then
+                        {min = 1. /. z.max; max = infinity; dwa = false}
                     else
-                        {fst = {min = neg_infinity; max = 1. /. z.fst.min};
-                         snd = pusty}
+                        {min = neg_infinity; max = 1. /. z.min; dwa = false}
                 in razy w part_b
 ;;
 
@@ -324,41 +283,19 @@ let rec iteruj f n acc = match n with
     let x = iteruj razy 10 c;;
 assert (not (in_wartosc x 0.));;
 
-let a = sr_wartosc (
-    podzielic (
-        wartosc_od_do (0.000000) (0.000000) )
-        ( podzielic
-            ( wartosc_od_do (-7.600000) (-5.200000) )
-            ( plus (
-                podzielic (
-                    wartosc_dokladnosc (-8.400000) (6.000000) )
-                    ( wartosc_dokladna (0.000000) ) )
-                ( plus (
-                    wartosc_dokladna (-2.000000) )
-                    ( plus (
-                        wartosc_od_do (-2.600000) (-1.400000) )
-                        ( wartosc_od_do (-8.200000) (2.400000) ) ) ) ) ) ) ;;
+let a = sr_wartosc ( podzielic ( wartosc_od_do (0.000000) (0.000000) ) (
+    podzielic ( wartosc_od_do (-7.600000) (-5.200000) ) ( plus ( podzielic (
+        wartosc_dokladnosc (-8.400000) (6.000000) ) ( wartosc_dokladna
+        (0.000000) ) ) ( plus ( wartosc_dokladna (-2.000000) ) ( plus (
+            wartosc_od_do (-2.600000) (-1.400000) ) ( wartosc_od_do (-8.200000)
+            (2.400000) ) ) ) ) ) ) ;;
 assert ((classify_float a) == FP_nan);;
 
-let a =
-    in_wartosc
-    ( plus
-        ( wartosc_dokladna (-0.8) )
-        ( plus
-            ( podzielic
-                ( wartosc_od_do (-8.2) (3.2) )
-                ( minus
-                    ( plus
-                        ( minus
-                            ( wartosc_dokladnosc (-0.8) (1.2) )
-                            ( wartosc_dokladna (0.8) ) )
-                        ( wartosc_od_do (-0.6) (1.4) ) )
-                    ( minus
-                        ( wartosc_dokladnosc (-0.6) (0.8) )
-                        ( wartosc_od_do (-7.8) (0.0) ) ) ) )
-            ( wartosc_dokladna (-5.0) ) ) )
-    (-7.8)
-;;
+let a = in_wartosc ( plus ( wartosc_dokladna (-0.8) ) ( plus ( podzielic (
+    wartosc_od_do (-8.2) (3.2) ) ( minus ( plus ( minus ( wartosc_dokladnosc
+    (-0.8) (1.2) ) ( wartosc_dokladna (0.8) ) ) ( wartosc_od_do (-0.6) (1.4) )
+    ) ( minus ( wartosc_dokladnosc (-0.6) (0.8) ) ( wartosc_od_do (-7.8) (0.0)
+    ) ) ) ) ( wartosc_dokladna (-5.0) ) ) ) (-7.8) ;;
 assert (a = true);;
 
 let eps = 1e-6;;
@@ -410,3 +347,59 @@ assert(in_wartosc f (0.11));;
 assert(in_wartosc f 0.0);;
 assert(in_wartosc f (-0.0));;
 
+let c = wartosc_od_do (-2.4) (-2.3);;
+let d = wartosc_od_do neg_infinity infinity;;
+let e = podzielic c d;;
+
+assert(max_wartosc e = infinity);;
+
+let a = max_wartosc ( podzielic ( podzielic ( wartosc_dokladnosc (-2.2) (5.4) )
+( podzielic ( wartosc_od_do (-5.0) (5.4) ) ( podzielic ( razy ( podzielic (
+    wartosc_od_do (0.0) (7.4) ) ( wartosc_dokladna (-7.6) ) ) ( wartosc_od_do
+    (0.0) (9.8) ) ) ( podzielic ( wartosc_od_do (0.0) (1.8) ) (
+        wartosc_dokladna (-8.2) )) ) ) ) ( wartosc_dokladnosc (-1.4) (9.6) ) )
+;;
+
+assert (a = infinity);;
+
+let a = max_wartosc ( podzielic ( wartosc_od_do (-5.200000) (-0.400000) ) (
+    podzielic ( podzielic ( wartosc_od_do (4.800000) (7.400000) ) (
+        wartosc_od_do (-9.400000) (4.400000) ) ) ( wartosc_dokladna (-5.000000)) ) ) ;;
+assert (a = 23.8333333333333357);;
+
+let a =
+    max_wartosc ( razy ( podzielic ( wartosc_dokladna (0.000000) ) (
+    wartosc_od_do (-8.600000) (-1.000000) ) ) ( podzielic ( wartosc_dokladna (1.200000)
+    ) ( wartosc_od_do (0.000000) (0.000000) ) ) ) ;;
+assert ((classify_float a) == FP_nan);;
+
+let a =
+    sr_wartosc ( podzielic ( wartosc_od_do (0.000000) (0.000000) ) ( minus
+( podzielic ( razy ( minus ( wartosc_dokladna (0.000000) ) ( wartosc_dokladnosc
+(-6.200000) (7.200000) ) ) ( wartosc_od_do (-1.600000) (3.200000) ) ) (
+    wartosc_od_do (0.000000) (9.400000) ) ) ( plus ( minus ( wartosc_dokladnosc
+    (2.000000) (9.400000) ) ( wartosc_dokladna (9.000000) ) ) ( minus (
+        wartosc_dokladna (-5.000000) ) ( wartosc_dokladna (1.600000) ) ) ) ) ) ;;
+assert (a = 0.);;
+
+let a = max_wartosc ( plus ( razy ( podzielic ( wartosc_dokladna (-6.600000) )
+( wartosc_dokladna (0.000000) ) ) ( wartosc_dokladnosc (6.600000) (4.000000) )
+) ( podzielic ( wartosc_od_do (3.000000) (4.400000) ) ( razy ( wartosc_od_do
+(-9.200000) (3.200000) ) ( wartosc_od_do (-9.600000) (2.800000) ) ) ) ) ;;
+
+assert ((classify_float a) == FP_nan);;
+
+let a = max_wartosc ( razy ( wartosc_od_do (-7.000000) (2.000000) ) ( podzielic
+( wartosc_od_do (0.000000) (1.000000) ) ( minus ( podzielic ( wartosc_dokladna
+(1.000000) ) ( wartosc_dokladna (6.000000) ) ) ( podzielic ( wartosc_dokladna
+(-7.000000) ) ( minus ( minus ( podzielic ( wartosc_dokladna (0.000000) ) (
+    wartosc_dokladna (6.000000) ) ) ( wartosc_dokladnosc (5.000000) (5.000000)
+) ) ( wartosc_od_do (-9.000000) (-1.000000) ) ) ) ) ) ) ;;
+assert (a = 4.72847682119205359);;
+
+let a = sr_wartosc ( podzielic ( wartosc_od_do (-5.200000) (6.800000) ) ( minus
+( razy ( wartosc_od_do (-5.200000) (0.000000) ) ( wartosc_dokladna (0.000000) )
+) ( podzielic ( podzielic ( wartosc_dokladna (6.600000) ) ( wartosc_od_do
+(5.400000) (6.800000) ) ) ( plus ( wartosc_dokladnosc (4.200000) (6.200000) ) (
+    wartosc_od_do (-8.400000) (2.600000) ) ) ) ) ) ;;
+(* assert (a = -5.81948121212120739);; *)
