@@ -6,8 +6,6 @@
 
 (* ----------------- Definicje typów i funkcje wewnętrzne ----------------- *)
 
-open Float
-
 (** 
     Podstawowy typ przechowywania niedokładnych wartości obsługujący
     dwuprzedziałowość. Wartość dwuprzedziałowa zawsze będzie zbiorem R z
@@ -15,22 +13,14 @@ open Float
     sam przedział [min, max] i określić, czy jest to przedział liczby (dwa =
     false) czy jego dopełnienie (dwa = true).
 *)
-type wartosc =
-    {
-        min: float;
-        max: float;
-        dwa: bool
-    }
+type wartosc = {min: float; max: float; dwa: bool}
 
-let pusty =
-    {
-        min = nan;
-        max = nan;
-        dwa = false
-    }
+let pusty = {min = nan; max = nan; dwa = false}
+
+let przedzial_R = {min = neg_infinity; max = infinity; dwa = false}
 
 (** Redefinicja operacji mnożenia, uwzględniająca dla uproszczenia
-(neg_)infinity * 0.0 = 0.0. *)
+    (neg_)infinity *. 0. = 0. *)
 let ( *. ) a b =
     if (a = 0. || b = 0.) then
         0.
@@ -38,8 +28,7 @@ let ( *. ) a b =
         a *. b
 ;;
 
-
-(** Zwraca znak floata *)
+(** Zwraca znak floata; float -> float *)
 let sgn n =
     match classify_float n with
     | FP_infinite when n = infinity -> 1.
@@ -48,42 +37,42 @@ let sgn n =
     | _  -> (n /. abs_float(n))
 ;;
 
-(** Sprawdza, czy x: wartosc jest zbiorem pustym *)
-let czy_pusty x = classify_float x.min = FP_nan;;
+(** Sprawdza, czy w jest zbiorem pustym; wartosc -> bool *)
+let czy_pusty w = classify_float w.min = FP_nan;;
 
-(** Zwraca odwrotność wartości *)
-let odwrotnosc x =
-    let a = 1. /. x.min and b = 1. /. x.max in
-    {min = min a b; max = max a b; dwa = not x.dwa}
+(** Zwraca odwrotność; wartosc -> wartosc *)
+let odwrotnosc w =
+    let a = 1. /. w.min and b = 1. /. w.max in
+    {min = min a b; max = max a b; dwa = not w.dwa}
 ;;
 
-(** Zwraca przeciwność wartości *)
-let przeciwnosc x = {min = (-1.) *. x.max; max = (-1.) *. x.min; dwa = x.dwa};;
+(** Zwraca przeciwność; wartosc -> wartosc *)
+let przeciwnosc w = {min = (-1.) *. w.max; max = (-1.) *. w.min; dwa = w.dwa};;
 
-(** Zwraca dopełnienie przedziału x *)
-let dopelnienie x = {min = x.min; max = x.max; dwa = not x.dwa};;
+(** Zwraca dopełnienie; wartosc -> wartosc *)
+let dopelnienie w = {min = w.min; max = w.max; dwa = not w.dwa};;
   
-(** Przyjmuje dwuprzedziałową liczbę i zwraca złączony jeden, jeśli przedziały
-się przecinają *)
+(** Zwraca złączone przedziały, jeśli się przecinały; wartosc -> wartosc *)
 let zlacz w =
     if (czy_pusty w) then
         pusty
     else
     if (w.min >= w.max) then
-        if (w.dwa) then {min = neg_infinity; max = infinity; dwa = false}
+        if (w.dwa) then przedzial_R
         else {min = w.min; max = w.max; dwa = false}
     else
         w
 ;;
 
-(** Zwraca sumę (w rozumieniu teorii zbiorów) dwóch dwuprzedziałowych liczb *)
-let suma w z = zlacz {min = max w.min z.min; max = min w.max z.max; dwa = true};;
+(** Zwraca sumę zbiorów w i z; wartosc * wartosc -> wartosc *)
+let suma w z =
+    zlacz {min = max w.min z.min; max = min w.max z.max; dwa = true}
+;;
 
 (* ----------------------------- Konstruktory ----------------------------- *)
 
 let wartosc_dokladnosc x p =
-    let a = x *. (1. -. 0.01 *. p)
-    and b = x *. (1. +. 0.01 *. p)
+    let a = x *. (1. -. 0.01 *. p) and b = x *. (1. +. 0.01 *. p)
     in
     {min = min a b; max = max a b; dwa = false}
 ;;
@@ -118,7 +107,7 @@ let rec plus w z =
     match (w.dwa, z.dwa) with
     | (true, true) ->
             (* suma dwóch wartości dwuprzedziałowych daje R *)
-            {min = neg_infinity; max = infinity; dwa = false}
+            przedzial_R
     | (true, false) -> plus z w
     | (false, true) ->
             zlacz {min = z.min +. w.max; max = z.max +. w.min; dwa = true}
@@ -127,14 +116,10 @@ let rec plus w z =
 ;;
 
 let minus w z =
-    match (w.dwa, z.dwa) with
-    | (true, true) ->
-            (* różnica dwóch wartości dwuprzedziałowych daje R *)
-            {min = neg_infinity; max = infinity; dwa = false}
-    | (false, true) | (true, false) ->
-            plus w (przeciwnosc z)
-    | (false, false) ->
-            {min = w.min -. z.max; max = w.max -. z.min; dwa = false}
+    if (w.dwa = false && z.dwa = false) then
+        {min = w.min -. z.max; max = w.max -. z.min; dwa = false}
+    else
+        plus w (przeciwnosc z)
 ;;
 
 let rec razy w z =
@@ -146,21 +131,19 @@ let rec razy w z =
                 odwrotnosc (razy (odwrotnosc w) (odwrotnosc z))
         | (true, false) -> razy z w
         | (false, true) ->
-                (* dać komentarz odnośnie tej rekurencji *)
-                if (w.min = w.max) then
-                    if (w.min = 0.) then
-                        {min = 0.; max = 0.; dwa = false}
-                    else
-                        let a = z.min *. w.min
-                        and b = z.max *. w.min
-                        in
-                            {min = min a b; max = max a b; dwa = true}
+                (* Poniższa rekurencja pozwala na oddzielne przeskalowanie
+                dwuprzedziałowego z przez w.min i w.max, by następnie zwrócić
+                sumę tych przekształconych zbiorów jako wynik mnożenia w*z *)
+                if (w.min = 0. && w.min = w.max) then
+                    wartosc_dokladna 0.
+                else if (w.min = w.max) then
+                    let a = z.min *. w.min and b = z.max *. w.min
+                    in {min = min a b; max = max a b; dwa = true}
+                else if (in_wartosc w 0.) then
+                    przedzial_R
                 else
-                    if (sgn w.min *. sgn w.max < 0.) then
-                        {min = neg_infinity; max = infinity; dwa = false}
-                    else
-                        suma (razy (wartosc_dokladna w.min) z) (razy (wartosc_dokladna
-                        w.max) z)
+                    suma (razy (wartosc_dokladna w.min) z) (razy
+                    (wartosc_dokladna w.max) z)
         | (false, false) ->
                 let a_min = min (w.min *. z.min) (w.min *. z.max)
                 and b_min = min (w.max *. z.min) (w.max *. z.max)
@@ -171,18 +154,13 @@ let rec razy w z =
 ;;
 
 let rec podzielic w z =
-    if (z.min = 0. && z.max = 0. || czy_pusty w || czy_pusty z) then
+    if (z = wartosc_dokladna 0. || czy_pusty w || czy_pusty z) then
         pusty
-    else if (z.min = neg_infinity && z.max = infinity) then
-        if (w.min = 0. && w.max = 0.) then
-            wartosc_dokladna 0.
-        else
-            {min = neg_infinity; max = infinity; dwa = false}
     else
         match (w.dwa, z.dwa) with
         | (true, true) ->
                 (* iloczyn dwóch wartości dwuprzedziałowych daje R *)
-                {min = neg_infinity; max = infinity; dwa = false}
+                przedzial_R
         | (true, false) ->
                 odwrotnosc (razy (odwrotnosc w) z)
         | (false, true) ->
@@ -191,8 +169,13 @@ let rec podzielic w z =
                 else
                     razy w (odwrotnosc z)
         | (false, false) ->
-                let part_b =
-                    if (sgn z.min *. sgn z.max > 0.) then
+                let b =
+                    if (z = przedzial_R) then
+                        if (w = wartosc_dokladna 0.) then
+                            wartosc_dokladna 0.
+                        else
+                            przedzial_R
+                    else if (sgn z.min *. sgn z.max > 0.) then
                         {min = 1. /. z.max; max = 1. /. z.min; dwa = false}
                     else if (sgn z.min *. sgn z.max < 0.) then
                         {min = 1. /. z.min; max = 1. /. z.max; dwa = true}
@@ -200,10 +183,11 @@ let rec podzielic w z =
                         {min = 1. /. z.max; max = infinity; dwa = false}
                     else
                         {min = neg_infinity; max = 1. /. z.min; dwa = false}
-                in razy w part_b
+                in razy w b
 ;;
 
 (* -------------------------------- Testy --------------------------------- *)
+open Float
 
 let a = wartosc_od_do (-1.) 1.            (* <-1, 1> *)
 let b = wartosc_dokladna (-1.)            (* <-1, -1> *)
