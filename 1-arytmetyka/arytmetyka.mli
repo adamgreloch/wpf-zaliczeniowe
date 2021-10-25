@@ -39,5 +39,3 @@ val plus:      wartosc -> wartosc -> wartosc
 val minus:     wartosc -> wartosc -> wartosc 
 val razy:      wartosc -> wartosc -> wartosc  
 val podzielic: wartosc -> wartosc -> wartosc
-
-val pokaz: wartosc -> float * float * float * float

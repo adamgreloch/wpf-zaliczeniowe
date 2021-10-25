@@ -1,25 +1,23 @@
-(*       **********************************************************         *)
-(*              Zadanie o arytmetyce niedokładnych wartości.                *)
-(*              Kod: Adam Greloch (438473)                                  *)
-(*              Review: Marcin Żołek (438836)                               *)
-(*       **********************************************************         *)
+(*                *******************************************               *)
+(*                Zadanie o arytmetyce niedokładnych wartości               *)
+(*                Kod: Adam Greloch (438473)                                *)
+(*                Review: Marcin Żołek (438836)                             *)
+(*                *******************************************               *)
 
 (* ----------------- Definicje typów i funkcje wewnętrzne ----------------- *)
 
-(** 
-    Podstawowy typ przechowywania niedokładnych wartości obsługujący
+(** Podstawowy typ przechowywania niedokładnych wartości obsługujący
     dwuprzedziałowość. Wartość dwuprzedziałowa zawsze będzie zbiorem R z
     wyłączeniem określonego przedziału [a,b], dlatego wystarczy przechowywać
-    sam przedział [min, max] i określić, czy jest to przedział liczby (dwa =
-    false) czy jego dopełnienie (dwa = true).
-*)
+    sam przedział [min, max] i określić, czy jest to przedział danej liczby
+    (dwa = false) czy jego dopełnienie (dwa = true). *)
 type wartosc = {min: float; max: float; dwa: bool}
 
 let pusty = {min = nan; max = nan; dwa = false}
 
 let przedzial_R = {min = neg_infinity; max = infinity; dwa = false}
 
-(** Redefinicja operacji mnożenia, uwzględniająca dla uproszczenia
+(** Redefinicja operacji mnożenia, uwzględniająca dla uproszczenia, że
     (neg_)infinity *. 0. = 0. *)
 let ( *. ) a b =
     if (a = 0. || b = 0.) then
@@ -56,15 +54,16 @@ let dopelnienie w = {min = w.min; max = w.max; dwa = not w.dwa};;
 let zlacz w =
     if (czy_pusty w) then
         pusty
-    else
-    if (w.min >= w.max) then
-        if (w.dwa) then przedzial_R
-        else {min = w.min; max = w.max; dwa = false}
+    else if (w.min >= w.max) then
+        if (w.dwa) then
+            przedzial_R
+        else
+            {min = w.min; max = w.max; dwa = false}
     else
         w
 ;;
 
-(** Zwraca sumę zbiorów w i z; wartosc * wartosc -> wartosc *)
+(** Zwraca sumę w i z jako zbiorów; wartosc * wartosc -> wartosc *)
 let suma w z =
     zlacz {min = max w.min z.min; max = min w.max z.max; dwa = true}
 ;;
@@ -73,8 +72,7 @@ let suma w z =
 
 let wartosc_dokladnosc x p =
     let a = x *. (1. -. 0.01 *. p) and b = x *. (1. +. 0.01 *. p)
-    in
-    {min = min a b; max = max a b; dwa = false}
+    in {min = min a b; max = max a b; dwa = false}
 ;;
 
 let wartosc_od_do x y = {min = x; max = y; dwa = false};;
@@ -84,15 +82,10 @@ let wartosc_dokladna x = {min = x; max = x; dwa = false};;
 (* ------------------------------ Selektory ------------------------------- *)
 
 let in_wartosc w x =
-    if (w.min <= x && x <= w.max && not w.dwa)
-    then
+    if (w.min <= x && x <= w.max && not w.dwa) then
         true
     else
-        if ((x <= w.min || w.max <= x) && w.dwa)
-        then
-            true
-        else
-            false
+        ((x <= w.min || w.max <= x) && w.dwa)
 ;;
 
 let min_wartosc w = if w.dwa then neg_infinity else w.min;;
@@ -187,6 +180,7 @@ let rec podzielic w z =
 ;;
 
 (* -------------------------------- Testy --------------------------------- *)
+
 open Float
 
 let a = wartosc_od_do (-1.) 1.            (* <-1, 1> *)
@@ -380,10 +374,3 @@ let a = max_wartosc ( razy ( wartosc_od_do (-7.000000) (2.000000) ) ( podzielic
     wartosc_dokladna (6.000000) ) ) ( wartosc_dokladnosc (5.000000) (5.000000)
 ) ) ( wartosc_od_do (-9.000000) (-1.000000) ) ) ) ) ) ) ;;
 assert (a = 4.72847682119205359);;
-
-let a = sr_wartosc ( podzielic ( wartosc_od_do (-5.200000) (6.800000) ) ( minus
-( razy ( wartosc_od_do (-5.200000) (0.000000) ) ( wartosc_dokladna (0.000000) )
-) ( podzielic ( podzielic ( wartosc_dokladna (6.600000) ) ( wartosc_od_do
-(5.400000) (6.800000) ) ) ( plus ( wartosc_dokladnosc (4.200000) (6.200000) ) (
-    wartosc_od_do (-8.400000) (2.600000) ) ) ) ) ) ;;
-(* assert (a = -5.81948121212120739);; *)
