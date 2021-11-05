@@ -1,7 +1,7 @@
 (*                *******************************************               *)
 (*                Drzewa Lewicowe                                           *)
 (*                Kod: Adam Greloch (438473)                                *)
-(*                Review: Marcin Żołek (438836)                             *)
+(*                Review: Wojciech Rzepliński (438709)                      *)
 (*                *******************************************               *)
 
 (** a' queue definiowane jako drzewo, gdzie węzły przetrzymują dodatkowo
