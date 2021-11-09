@@ -14,7 +14,8 @@ let empty = Leaf;;
 
 let is_empty q = (q = empty);;
 
-(** zwraca s-value danego korzenia *)
+(** zwraca liczbę wierzchołków potrzebnych do przejścia z danego wierzchołka do
+    najbliższego liścia. *)
 let s_val = function
     | Leaf -> -1
     | Node(_,_,_,d) -> d
@@ -25,7 +26,7 @@ let rec join q1 q2 =
     | (Leaf, _) -> q2
     | (_, Leaf) -> q1
     | (Node(_,k1,_,_), Node(_,k2,_,_)) when k2 < k1 -> join q2 q1
-    | (Node(l1,k1,r1,_), Node(_,k2,_,_)) ->
+    | (Node(l1,k1,r1,_), _) ->
             let r1 = join r1 q2 in
             if s_val r1 > s_val l1 then
                 Node(r1, k1, l1, s_val l1 + 1)
