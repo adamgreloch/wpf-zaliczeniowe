@@ -65,6 +65,9 @@ let zlacz w =
 
 (** Zwraca sumę w i z jako zbiorów; wartosc * wartosc -> wartosc *)
 let suma w z =
+    if (w = przedzial_R || z = przedzial_R) then
+        przedzial_R
+    else
     zlacz {min = max w.min z.min; max = min w.max z.max; dwa = true}
 ;;
 
@@ -121,7 +124,11 @@ let rec razy w z =
     else
         match (w.dwa, z.dwa) with
         | (true, true) ->
-                odwrotnosc (razy (odwrotnosc w) (odwrotnosc z))
+                suma
+                (suma (razy (wartosc_dokladna w.min) z) (razy
+                    (wartosc_dokladna w.max) z))
+                (suma (razy (wartosc_dokladna z.min) w) (razy
+                    (wartosc_dokladna z.max) w))
         | (true, false) -> razy z w
         | (false, true) ->
                 (* Poniższa rekurencja pozwala na oddzielne przeskalowanie
@@ -374,3 +381,14 @@ let a = max_wartosc ( razy ( wartosc_od_do (-7.000000) (2.000000) ) ( podzielic
     wartosc_dokladna (6.000000) ) ) ( wartosc_dokladnosc (5.000000) (5.000000)
 ) ) ( wartosc_od_do (-9.000000) (-1.000000) ) ) ) ) ) ) ;;
 assert (a = 4.72847682119205359);;
+
+let jeden = wartosc_dokladna 1.;;
+let a = wartosc_od_do (-1.) 0.125;;
+let a = podzielic jeden a;;
+let a = plus jeden a;;
+let a = plus jeden a;;
+let b = wartosc_od_do (-1./.3.) (1./.4.);;
+let b = podzielic jeden b;;
+let c = razy a b;;
+
+assert (in_wartosc c (-2.))
