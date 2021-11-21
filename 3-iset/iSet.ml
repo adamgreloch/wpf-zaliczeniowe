@@ -114,29 +114,27 @@ let rec split a = function
         if a < b then
             let (ll, pres, rl) = split a l in (ll, pres, join rl v r)
         else if b <= a && a <= c then
-            if a = min_int then
-                (add_one (b,a) l, false, add_one (a++1,c) r)
-            else
-                (add_one (b,a++(-1)) l, true, add_one (a++1,c) r)
+            let nl = if a = b then l else add_one (b, a-1) l
+            and nr = if a = c then r else add_one (a+1, c) r
+            in
+                (nl, true, nr)
         else
             let (lr, pres, rr) = split a r in (join l v lr, pres, rr)
 
-let rec add ((a,b) as x) = function
-    | Empty -> make Empty x Empty
-    | Node (_, (c,d), _, _, _) as s ->
-        if c <= a && b <= d then s else
-        let (al, _, _) = split a s
-        and (_, _, br) = split b s
-        in
-        let (lc, ld) = if al = Empty then (a,a) else max_elt al
-        and (rc, rd) = if br = Empty then (b,b) else min_elt br
-        in
-        let (al,a) = if al <> Empty && (ld = a || ld = a ++ (-1)) then
-            (remove_max_elt al, lc) else (al, a)
-        and (br,b) = if br <> Empty && (rc = b || rc = b ++ 1) then
-            (remove_min_elt br, rd) else (br, b)
-        in
-            join al (a,b) br
+let rec add (a,b) s =
+    let (al, _, _) = split a s
+    and (_, _, br) = split b s
+    in
+    let (lc, ld) = if al = Empty then (a,a) else max_elt al
+    and (rc, rd) = if br = Empty then (b,b) else min_elt br
+    in
+    let (al,a) = if al <> Empty && (ld = a || ld = a - 1) then
+        (remove_max_elt al, lc) else (al, a)
+    and (br,b) = if br <> Empty && (rc = b || rc = b + 1) then
+        (remove_min_elt br, rd) else (br, b)
+    in
+        join al (a,b) br
+
 
 let remove (a,b) s = 
     let (al, _, _) = split a s
@@ -179,38 +177,3 @@ let below n s =
     let (l, pres, _) = split n s
     in
     elenum l ++ (if pres then 1 else 0)
-
-let a = add (0, 5) empty;;
-let a = add (7, 8) a;;
-let a = add (-3, -3) a;;
-let a = add (10, 13) a;;
-assert(elements a = [(-3, -3); (0, 5); (7, 8); (10, 13)]);;
-assert(below 8 a = 9);;
-let b = add (6, 6) a;;
-let b = remove (6, 6) b;;
-let b = add (-100, -5) b;;
-let b = add (-4, 6) b;;
-assert(elements b = [(-100, 8); (10, 13)]);;
-assert(below 10 b = 110);;
-let c = remove (2, 10) a;;
-assert(elements c = [(-3, -3); (0, 1); (11, 13)]);;
-assert(below 12 c = 5);;
-
-let zle = ref 0
-let test (id:int) (result:bool) (expected:bool) : unit =
-    if result <> expected then begin
-        Printf.printf "Zly wynik testu %d!\n" id;
-        incr zle
-    end;;
-
-let s = add (3, 4) (add (8, 10) (add (15, 20) empty));;
-test 51 (below 2 s = 0) true;;
-test 52 (below 3 s = 1) true;;
-test 53 (below 10 s = 5) true;;
-test 54 (below 15 s = 6) true;;
-test 55 (below 100 s = 11) true;;
-let s = add (1, max_int) (add (-1, 0) empty);;
-test 56 (below max_int s = max_int) true;;
-let s = add (-min_int, max_int) empty;;
-test 57 (below max_int s = max_int) true;;
-test 58 (below min_int s = 1) true;;
