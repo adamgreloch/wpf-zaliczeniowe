@@ -1,10 +1,22 @@
-(* ISet - Interval sets *)
+(*
+ * ISet - Interval sets
+ * Code: Adam Greloch (438473)        
+ * Review: Piotr Trzaskowski (438782)
+ *)
 
 type t =
+    (* t: drzewo binarne pamiętające wysokość i liczbę elementów. *)
     | Empty
     | Node of t * (int * int) * t * int * int
 
+let empty = Empty
+
+let is_empty s = 
+    s = Empty
+
 let (++) a b =
+    (* [a ++ b] zapobiega overflowowi podczas operacji dodawania dwóch intów i
+    zwraca jej wynik. *)
     let (a, b) = (min a b, max a b) in
     if a >= 0 then
         if a < max_int - b then a + b else max_int
@@ -20,11 +32,14 @@ let elenum = function
     | Empty -> 0
 
 let make l ((a,b) as v) r =
+    (* [make l (a,b) r] łączy w jedno drzewo poddrzewo lewe [l], przedział
+    [[a,b]] jako wierzchołek i poddrzewo [r]. Zakłada, że [[a,b]] nie występuje
+    w żadnym z wejściowych poddrzew. *)
     let e =
     if a = min_int then
         -(a+1) ++ b ++ 2 ++ elenum l ++ elenum r
     else
-        (-a) ++ b ++ 1 ++ elenum l ++ elenum r
+        (-a+1) ++ b ++ elenum l ++ elenum r
     in
     Node (l, v, r, max (height l) (height r) + 1, e)
 
@@ -38,20 +53,22 @@ let bal l v r =
             else
                 (match lr with
                 | Node (lrl, lrv, lrr, _, _) ->
-                          make (make ll lv lrl) lrv (make lrr v r)
+                    make (make ll lv lrl) lrv (make lrr v r)
                 | Empty -> assert false)
         | Empty -> assert false
     else if hr > hl + 2 then
         match r with
-            | Node (rl, rv, rr, _, _) ->
-                if height rr >= height rl then make (make l v rl) rv rr
-                else
-                    (match rl with
-                      | Node (rll, rlv, rlr, _, _) ->
-                          make (make l v rll) rlv (make rlr rv rr)
-                      | Empty -> assert false)
-            | Empty -> assert false
+        | Node (rl, rv, rr, _, _) ->
+            if height rr >= height rl then make (make l v rl) rv rr
+            else
+                (match rl with
+                | Node (rll, rlv, rlr, _, _) ->
+                    make (make l v rll) rlv (make rlr rv rr)
+                | Empty -> assert false)
+        | Empty -> assert false
     else make l v r
+
+(* Procedury zwracające elementy minimalne, maksymalne oraz je usuwające. *)
 
 let rec min_elt = function
     | Node (Empty, i, _, _, _) -> i
@@ -81,12 +98,9 @@ let merge t1 t2 =
         let v = min_elt t2 in
         bal t1 v (remove_min_elt t2)
 
-let empty = Empty
-
-let is_empty s = 
-    s = Empty
-
 let rec add_one ((a,b) as x) s =
+    (* [add_one (a,b) s] dodaje do zbioru [s] przedział [[a,b]]. Zakłada, że
+    wejściowe zbiory mają puste przecięcie. *)
     if a > b then s else
     match s with
     | Node (l, ((c,d) as v), r, _, _) ->
@@ -97,6 +111,9 @@ let rec add_one ((a,b) as x) s =
     | Empty -> make Empty x Empty
 
 let rec join l v r =
+    (* [make l (a,b) r] tworzy zbalansowane drzewo składające się z poddrzewa
+    lewego [l], przedziału [[a,b]] w wierzchołku i poddrzewa [r]. Zakłada, że
+    [[a,b]] nie występuje w żadnym z wejściowych poddrzew. *)
     match (l, r) with
     | (Empty, _) -> add_one v r
     | (_, Empty) -> add_one v l
@@ -122,6 +139,9 @@ let rec split a = function
             let (lr, pres, rr) = split a r in (join l v lr, pres, rr)
 
 let rec add (a,b) s =
+    (* [add (a,b) s] zwraca zbiór zawierający elementy zbioru [s] plus elementy
+       z przedziału [[a,b]]. Zakłada, że [a <= b]. Oprócz tego przedział
+       [[a,b]] może być dowolny. *)
     let (al, _, _) = split a s
     and (_, _, br) = split b s
     in
@@ -137,6 +157,9 @@ let rec add (a,b) s =
 
 
 let remove (a,b) s = 
+    (* [remove (a,b) s] zwraca zbiór zawierający elementy zbioru [s] z
+       wyjątkiem elementów z przedziału [[a,b]]. Zakłada, że [a <= b]. Oprócz
+       tego przedział [[a,b]] może być dowolny. *)
     let (al, _, _) = split a s
     and (_, _, br) = split b s
     in
@@ -177,3 +200,4 @@ let below n s =
     let (l, pres, _) = split n s
     in
     elenum l ++ (if pres then 1 else 0)
+
