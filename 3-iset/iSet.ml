@@ -15,13 +15,16 @@ let is_empty s =
     s = Empty
 
 let (++) a b =
-    (* [a ++ b] zapobiega overflowowi podczas operacji dodawania dwóch intów i
-    zwraca jej wynik. *)
-    let (a, b) = (min a b, max a b) in
-    if a >= 0 then
-        if a < max_int - b then a + b else max_int
-    else
-        if b > min_int - a then a + b else min_int
+    (* [a ++ b] zapobiega przekroczeniu zakresu podczas operacji dodawania
+    dwóch intów i zwraca jej wynik. Działa przy założeniu, że b >= 0. *)
+    if a + b < a then max_int
+    else a + b
+
+let (--) a b =
+    (* [a -- b] zapobiega przekroczeniu zakresu podczas operacji odejmowania
+    dwóch intów i zwraca jej wynik. Działa przy założeniu, że a >= b. *)
+    if a - b < 0 then max_int
+    else a - b
 
 let height = function
     | Node (_, _, _, h, _) -> h
@@ -35,11 +38,7 @@ let make l ((a,b) as v) r =
     (* [make l (a,b) r] łączy w jedno drzewo poddrzewo lewe [l], przedział
     [[a,b]] jako wierzchołek i poddrzewo [r]. Zakłada, że [[a,b]] nie występuje
     w żadnym z wejściowych poddrzew. *)
-    let e =
-    if a = min_int then
-        -(a+1) ++ b ++ 2 ++ elenum l ++ elenum r
-    else
-        (-a+1) ++ b ++ elenum l ++ elenum r
+    let e = b -- a ++ 1 ++ elenum l ++ elenum r
     in
     Node (l, v, r, max (height l) (height r) + 1, e)
 
@@ -91,6 +90,8 @@ let rec remove_max_elt = function
     | Empty -> invalid_arg "ISet.remove_max_elt"
 
 let merge t1 t2 =
+    (* [merge t1 t2] zwraca zbalansowane drzewo powstałe z dwóch rozłącznych
+    poddrzew [t1] [t2]. *)
     match (t1, t2) with
     | (Empty, _) -> t2
     | (_, Empty) -> t1
@@ -148,9 +149,9 @@ let rec add (a,b) s =
     let (lc, ld) = if al = Empty then (a,a) else max_elt al
     and (rc, rd) = if br = Empty then (b,b) else min_elt br
     in
-    let (al,a) = if al <> Empty && (ld = a || ld = a - 1) then
+    let (al,a) = if al <> Empty && (ld = a || ld = a-1) then
         (remove_max_elt al, lc) else (al, a)
-    and (br,b) = if br <> Empty && (rc = b || rc = b + 1) then
+    and (br,b) = if br <> Empty && (rc = b || rc = b+1) then
         (remove_min_elt br, rd) else (br, b)
     in
         join al (a,b) br
