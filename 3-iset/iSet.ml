@@ -5,7 +5,7 @@
  *)
 
 type t =
-    (* t: drzewo binarne pamiętające wysokość i liczbę elementów. *)
+    (* t: docelowo drzewo BST z wyważaniem pamiętające liczbę elementów. *)
     | Empty
     | Node of t * (int * int) * t * int * int
 
@@ -43,6 +43,7 @@ let make l ((a,b) as v) r =
     Node (l, v, r, max (height l) (height r) + 1, e)
 
 let bal l v r =
+    (* [bal l v r] tworzy zbalansowane drzewo w czasie stałym *)
     let hl = height l in
     let hr = height r in
     if hl > hr + 2 then
@@ -67,8 +68,6 @@ let bal l v r =
         | Empty -> assert false
     else make l v r
 
-(* Procedury zwracające elementy minimalne, maksymalne oraz je usuwające. *)
-
 let rec min_elt = function
     | Node (Empty, i, _, _, _) -> i
     | Node (l, _, _, _, _) -> min_elt l
@@ -91,7 +90,7 @@ let rec remove_max_elt = function
 
 let merge t1 t2 =
     (* [merge t1 t2] zwraca zbalansowane drzewo powstałe z dwóch rozłącznych
-    poddrzew [t1] [t2]. *)
+       zbalansowanych poddrzew [t1] [t2]. *)
     match (t1, t2) with
     | (Empty, _) -> t2
     | (_, Empty) -> t1
@@ -101,7 +100,7 @@ let merge t1 t2 =
 
 let rec add_one ((a,b) as x) s =
     (* [add_one (a,b) s] dodaje do zbioru [s] przedział [[a,b]]. Zakłada, że
-    wejściowe zbiory mają puste przecięcie. *)
+    wejściowy przedział i zbiór mają puste przecięcie. *)
     if a > b then s else
     match s with
     | Node (l, ((c,d) as v), r, _, _) ->
@@ -127,6 +126,8 @@ let rec join l v r =
             make l v r
 
 let rec split a = function
+    (* [split a] zwraca (nl, bool, nr), gdzie [nl] i [nr] to zbalansowane
+       drzewa *)
     | Empty -> (Empty, false, Empty)
     | Node (l, ((b, c) as v), r, _, _) ->
         if a < b then
@@ -160,7 +161,8 @@ let rec add (a,b) s =
 let remove (a,b) s = 
     (* [remove (a,b) s] zwraca zbiór zawierający elementy zbioru [s] z
        wyjątkiem elementów z przedziału [[a,b]]. Zakłada, że [a <= b]. Oprócz
-       tego przedział [[a,b]] może być dowolny. *)
+       tego przedział [[a,b]] może być dowolny. Działa w logarytmicznym czasie,
+       jeśli [s] jest drzewem zbalansowanym *)
     let (al, _, _) = split a s
     and (_, _, br) = split b s
     in
