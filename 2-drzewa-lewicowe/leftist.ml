@@ -1,8 +1,8 @@
-(*                *******************************************               *)
-(*                Drzewa Lewicowe                                           *)
-(*                Kod: Adam Greloch (438473)                                *)
-(*                Review: Wojciech Rzepliński (438709)                      *)
-(*                *******************************************               *)
+(*
+ * Leftist - Drzewa lewicowe
+ * Code: Adam Greloch (438473)
+ * Review: Wojciech Rzepliński (438709)
+ *)
 
 (** a' queue definiowane jako drzewo, gdzie węzły przetrzymują dodatkowo
     informację o odległości do najbliższego Leafa jako int *)

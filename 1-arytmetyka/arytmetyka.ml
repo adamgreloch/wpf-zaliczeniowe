@@ -1,8 +1,8 @@
-(*                *******************************************               *)
-(*                Zadanie o arytmetyce niedokładnych wartości               *)
-(*                Kod: Adam Greloch (438473)                                *)
-(*                Review: Marcin Żołek (438836)                             *)
-(*                *******************************************               *)
+(*
+ * Arytmetyka - Zadanie o arytmetyce niedokładnych wartości
+ * Kod: Adam Greloch (438473)
+ * Review: Marcin Żołek (438836)
+ *)
 
 (* ----------------- Definicje typów i funkcje wewnętrzne ----------------- *)
 
