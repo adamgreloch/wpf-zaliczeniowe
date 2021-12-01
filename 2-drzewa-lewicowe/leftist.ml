@@ -1,7 +1,7 @@
 (*
  * Leftist - Drzewa lewicowe
- * Code: Adam Greloch (438473)
- * Review: Wojciech Rzepliński (438709)
+ * Code: Adam Greloch
+ * Review: Wojciech Rzepliński
  *)
 
 (** a' queue definiowane jako drzewo, gdzie węzły przetrzymują dodatkowo

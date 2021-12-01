@@ -1,7 +1,7 @@
 (*
  * ISet - Interval sets
- * Code: Adam Greloch (438473)        
- * Review: Piotr Trzaskowski (438782)
+ * Code: Adam Greloch
+ * Review: Piotr Trzaskowski
  *)
 
 type t =
