@@ -4,6 +4,8 @@
  * Review: Maja Tkaczyk
  *)
 
+let eps = 1e-12
+
 type point = float * float
 
 type kartka = point -> int
@@ -12,18 +14,33 @@ let prostokat (x1,y1) (x2,y2) =
     function (x,y) -> if (x1 <= x && x <= x2 && y1 <= y && y <= y2) then 1 else 0
 
 let kolko (x0,y0) r =
-    function (x,y) -> if (sqrt ((x0 -. x)**2. +. (y0 -. y)**2.) <= r) then 1 else 0
+    function (x,y) -> if (sqrt ((x0 -. x)**2. +. (y0 -. y)**2.) <= r +. eps) then 1 else 0
 
 let obraz (x,y) (x1,y1) (x2,y2) =
     (* [obraz p p1 p2] zwraca obraz punktu [p] w symetrii względem prostej
        wyznaczonej przez punkty [p1], [p2]. By zatem istniała prosta, [p1] i [p2]
        muszą być różne. *)
+  if x1 = x2 then (2.0 *. x1 -. x, y)
+  else if y1 = y2 then (x, 2.0 *. y1 -. y) 
+  else
+    (*obliczam współczynniki w równaniach:
+    y = ax + b - prosta przechodząca przez punkty (x1, y1) i (x2, y2)
+    y = cx + d - prosta prostopadła do wyżej wymienionej i przechodząca przez (x, y)*)
+    let a = (y1 -. y2) /. (x1 -. x2) in 
+    let b = y2 -. a *. x2 in 
+    let c = (x2 -. x1) /. (y1 -. y2) in
+    let d =  y -. c *. x in
+		(*	współrzędne (p, q) punktu przecięcia tych prostych  *)
+    let p = (d -. b) /. (a -. c) in
+    let q = p *. a +. b in 
+    (2. *. p -. x, 2. *. q -. y);; 
+(*
     let a = (x2 -. x1)
     and b = (y1 -. y2)
     and c = (y2 -. y1) *. x1 -. (x2 -. x1) *. y1 in
     let xp = (x *. (a**2. -. b**2.) -. 2. *. b *. (a *. y +. c)) /. (a**2. +. b**2.)
     and yp = (y *. (b**2. -. a**2.) -. 2. *. a *. (b *. x +. c)) /. (a**2. +.  b**2.)
-    in (xp, yp)
+    in (xp, yp)*)
 
 type polozenie = Lewo | Prosta | Prawo
     (* typ [polozenie] do wyznaczania lokalizacji punktu względem prostej
@@ -35,8 +52,8 @@ let gdzie_jest (x,y) (x1,y1) (x2,y2) =
        prostej wyznaczonej przez punkty [p1] i [p2]?" na podstawie znaku wartości
        iloczynu wektorowego między wektorami [p2,p1], [p2,p]. *)
     let p = (x -. x2) *. (y2 -. y1) -. (y -. y2) *. (x2 -. x1) in
-    if p < 0. then Lewo
-    else if p = 0. then Prosta
+    if -.eps < p && p < eps then Prosta
+    else if p < 0. then Lewo
     else Prawo
 
 let zloz p1 p2 k = function p0 ->
