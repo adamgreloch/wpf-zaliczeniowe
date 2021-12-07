@@ -18,29 +18,18 @@ let kolko (x0,y0) r =
 
 let obraz (x,y) (x1,y1) (x2,y2) =
     (* [obraz p p1 p2] zwraca obraz punktu [p] w symetrii względem prostej
-       wyznaczonej przez punkty [p1], [p2]. By zatem istniała prosta, [p1] i [p2]
-       muszą być różne. *)
-  if x1 = x2 then (2.0 *. x1 -. x, y)
-  else if y1 = y2 then (x, 2.0 *. y1 -. y) 
-  else
-    (*obliczam współczynniki w równaniach:
-    y = ax + b - prosta przechodząca przez punkty (x1, y1) i (x2, y2)
-    y = cx + d - prosta prostopadła do wyżej wymienionej i przechodząca przez (x, y)*)
-    let a = (y1 -. y2) /. (x1 -. x2) in 
-    let b = y2 -. a *. x2 in 
-    let c = (x2 -. x1) /. (y1 -. y2) in
-    let d =  y -. c *. x in
-		(*	współrzędne (p, q) punktu przecięcia tych prostych  *)
-    let p = (d -. b) /. (a -. c) in
-    let q = p *. a +. b in 
-    (2. *. p -. x, 2. *. q -. y);; 
-(*
-    let a = (x2 -. x1)
-    and b = (y1 -. y2)
-    and c = (y2 -. y1) *. x1 -. (x2 -. x1) *. y1 in
-    let xp = (x *. (a**2. -. b**2.) -. 2. *. b *. (a *. y +. c)) /. (a**2. +. b**2.)
-    and yp = (y *. (b**2. -. a**2.) -. 2. *. a *. (b *. x +. c)) /. (a**2. +.  b**2.)
-    in (xp, yp)*)
+       wyznaczonej przez punkty [p1], [p2]. By zatem istniała prosta, [p1] i
+       [p2] muszą być różne. Obraz otrzymywany jest metodą polegającą na
+       znalezieniu prostej prostopadlej do [p1p2], znalezieniu punktu
+       przecięcia [s]. Translacja [s] o wektor [ps] daje nam szukany obraz. *)
+    if x1 = x2 then (2. *. x1 -. x, y)
+    else if y1 = y2 then (x, 2. *. y1 -. y) 
+    else
+    let (a,c) = ((y1 -. y2) /. (x1 -. x2), (x2 -. x1) /. (y1 -. y2)) in
+    let (b,d) = (y2 -. a *. x2, y -. c *. x) in
+    let sx = (d -. b) /. (a -. c) in
+    let sy = sx *. a +. b in 
+    (2. *. sx -. x, 2. *. sy -. y)
 
 type polozenie = Lewo | Prosta | Prawo
     (* typ [polozenie] do wyznaczania lokalizacji punktu względem prostej
@@ -52,12 +41,12 @@ let gdzie_jest (x,y) (x1,y1) (x2,y2) =
        prostej wyznaczonej przez punkty [p1] i [p2]?" na podstawie znaku wartości
        iloczynu wektorowego między wektorami [p2,p1], [p2,p]. *)
     let p = (x -. x2) *. (y2 -. y1) -. (y -. y2) *. (x2 -. x1) in
-    if -.eps < p && p < eps then Prosta
+    if abs_float p < eps then Prosta
     else if p < 0. then Lewo
     else Prawo
 
 let zloz p1 p2 k = function p0 ->
-    (* [zloz p1 p2 k] zwraca złożenie kartki [k] wzdłuż prostej [p1][p2].
+    (* [zloz p1 p2 k] zwraca złożenie kartki [k] wzdłuż prostej [p1p2].
        Zakłada, że [p1], [p2] są różne. Jeśli [p0] jest po lewej stronie
        prostej wyznaczonej przez [p1] i [p2] to znaczy, że przebija złożony
        fragment kartki oraz to, co pod nią z niej zostało. Jeśli jest na
