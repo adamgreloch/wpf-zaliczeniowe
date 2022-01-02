@@ -1,7 +1,7 @@
 (*
  * Sortowanie topologiczne
  * Code: Adam Greloch
- * Review: Konrad Obernikowicz
+ * Review: Kamil Pilkiewicz (jesteśmy w trójce z Konradem Obernikowiczem)
  *)
 
 exception Cykliczne
@@ -11,7 +11,7 @@ let topol lista =
         (* Sprawdzam, czy nie nadpisuję powiązania [v] z listą jego poprzednio
            znalezionymi sąsiadów. Ma to znaczenie w przypadku, gdy ten sam
            wierzchołek [v] w liście wejściowej występuje kilka razy np. z
-           różnymi zestawami krawędzi *)
+           różnymi zestawami krawędzi. *)
         let edges = if PMap.mem v acc then
                 let (_,_,t) = (PMap.find v acc) in l @ t
             else l
@@ -34,7 +34,7 @@ let topol lista =
         | (true, true, _) -> ()
         | (true, false, _) ->
                 (* Jeśli [v] zostało już obejrzane, ale nie ma go w [sorted],
-                   to znaczy, że po drodze [v] wskazał na [v], czyli mamy cykl *)
+                   to znaczy, że po drodze [v] wskazał na [v], czyli mamy cykl. *)
                 raise Cykliczne
         | (_, _, l) ->
                 begin
