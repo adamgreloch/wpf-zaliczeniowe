@@ -22,7 +22,7 @@ let przelewanka arr =
        sprawdzeniu wszystkich kombinacji backtrackingiem. *)
 
     let q = ref (Queue.create())
-    and visited = Hashtbl.create 42424242
+    and visited = Hashtbl.create 424242
     and min_kr = ref (-1) in
     let is_good v = for_all2 (fun x (_,y) -> x = y) v arr in
 
@@ -75,7 +75,7 @@ let przelewanka arr =
             nalej (v,0);
             while not (Queue.is_empty !q) do
                 let e = Queue.pop !q in
-                    List.iter (fun f -> f e) [nalej; wylej; przelej];
+                List.iter (fun f -> f e) [nalej; wylej; przelej];
             done
         end
     in
