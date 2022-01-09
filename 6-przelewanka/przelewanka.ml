@@ -1,4 +1,11 @@
+(*
+ * Przelewanka
+ * Code: Adam Greloch
+ * Review: Jakub Klimek
+ *)
+
 let rec nwd_l res = function
+    (* Procedura zwracająca NWD całej listy intów *)
     | [] -> res
     | h::t ->
     let rec nwd a b = if b = 0 then a else nwd b (a mod b) in
@@ -9,23 +16,31 @@ open Array
 let przelewanka arr = 
     let n = length arr in
     if n = 0 then 0 else
-    (* Sprawdzenie zgodności oczekiwanego wyniku z warunkami początkowymi *)
-    let d = nwd_l (fst arr.(0)) (to_list (map (fun (x,_) -> x) arr)) in
+    if exists (fun (x,y) -> x < y) arr then
+        (-1)
+        (* Szklanka o pojemności x nie może pomieścić więcej niż x wody. *)
+    else let d = nwd_l (fst arr.(0)) (to_list (map (fun (x,_) -> x) arr)) in
+    (* d := największy wspólny dzielnik wszystkich pojemności szklanek *)
     if d = 0 then
-        0 (* jeśli d = 0, to mamy n szklanek o zerowej pojemności, więc bezwysiłkowy sukces*)
+        0
+        (* Jeśli d = 0, to mamy n szklanek o zerowej pojemności, więc
+           bezwysiłkowy sukces, bo wszystko już . *)
     else if exists (fun (_,y) -> y mod d <> 0) arr then
         (-1)
+        (* Robiąc operacje na szklankach zawsze nalewamy/przelewamy ilość wody
+           podzielną przez d. Przy pomocy określonych w zadaniu operacji
+           niemożliwe jest zatem otrzymanie konfiguracji, w której pewna
+           szklanka ma ilość wody niepodzielną przez d. *)
     else if not (exists (fun (x,y) -> x = y || y = 0) arr) then
-        (-1) (* Conajmniej jedna szklanka musi być pełna lub pusta *)
+        (-1)
+        (* Conajmniej jedna szklanka musi być na koniec pełna lub pusta. *)
     else
-    (* Wynik ma sens. Od tego momentu możemy nie znaleźć rozwiązania jedynie po
-       sprawdzeniu wszystkich kombinacji backtrackingiem. *)
-
+    (* Na tym etapie oczekiwany wynik ma sens. Od teraz możemy stwierdzić
+       brak rozwiązania jedynie po sprawdzeniu wszystkich konfiguracji. *)
     let q = ref (Queue.create())
     and visited = Hashtbl.create 424242
     and min_kr = ref (-1) in
     let is_good v = for_all2 (fun x (_,y) -> x = y) v arr in
-
     let try_to_add (v,kr) =
         if !min_kr = (-1) && not (Hashtbl.mem visited v) then begin
             if is_good v then min_kr := kr else
