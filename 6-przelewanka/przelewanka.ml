@@ -18,7 +18,7 @@ let przelewanka arr =
         (* Szklanka o pojemności x nie może pomieścić więcej niż x wody. *)
     else
     let rec nwd_l res = function
-        (* Procedura zwracająca NWD całej listy intów *)
+        (* Procedura zwracająca NWD całej listy intów. *)
         | [] -> res
         | h::t ->
         let rec nwd a b = if b = 0 then a else nwd b (a mod b) in
@@ -43,10 +43,8 @@ let przelewanka arr =
     (* Backtracking *)
     let q = ref (Queue.create())
     and visited = Hashtbl.create 424242
-    and size = Array.map (fun (x,_) -> x) arr
-    and solution = Array.map (fun (_,y) -> y) arr in
-    (* Od wersji 4.13 macierze krotek można rozdzielać zręczniejszą funkcją
-       Array.split, lecz na cele kompatybilności rozdzielę je po kolei. *)
+    and size = Array.map fst arr
+    and solution = Array.map snd arr in
     let is_good v = v = solution in
     let try_to_add (v,kr) =
         if not (Hashtbl.mem visited v) then begin
@@ -74,7 +72,7 @@ let przelewanka arr =
     let przelej (v,kr) =
         for i = 0 to n - 1 do
             for j = 0 to n - 1 do
-                    let cp = copy v in
+                let cp = copy v in
                 if i <> j then begin
                     if cp.(i) + cp.(j) > size.(i) then begin
                         cp.(j) <- cp.(i) + cp.(j) - size.(i);
@@ -92,7 +90,7 @@ let przelewanka arr =
     let bfs v =
         if (is_good v) then raise (Solution 0)
         else begin
-            nalej (v,0);
+            Queue.add (v,0) !q;
             while not (Queue.is_empty !q) do
                 let e = Queue.pop !q in
                 List.iter (fun f -> f e) [nalej; wylej; przelej];
