@@ -4,27 +4,32 @@
  * Review: Jakub Klimek
  *)
 
-let rec nwd_l res = function
-    (* Procedura zwracająca NWD całej listy intów *)
-    | [] -> res
-    | h::t ->
-    let rec nwd a b = if b = 0 then a else nwd b (a mod b) in
-    nwd_l (nwd h res) t
+exception Solution of int
+exception NoSolution
 
 open Array
 
 let przelewanka arr = 
+    (* Zgodność z warunkami początkowymi i sytuacje oczywiste *)
     let n = length arr in
-    if n = 0 then 0 else
-    if exists (fun (x,y) -> x < y) arr then
+    if n = 0 then 0
+    else if exists (fun (x,y) -> x < y) arr then
         (-1)
         (* Szklanka o pojemności x nie może pomieścić więcej niż x wody. *)
-    else let d = nwd_l (fst arr.(0)) (to_list (map (fun (x,_) -> x) arr)) in
+    else
+    let rec nwd_l res = function
+        (* Procedura zwracająca NWD całej listy intów *)
+        | [] -> res
+        | h::t ->
+        let rec nwd a b = if b = 0 then a else nwd b (a mod b) in
+        nwd_l (nwd h res) t
+    in
+    let d = nwd_l (fst arr.(0)) (to_list (map (fun (x,_) -> x) arr)) in
     (* d := największy wspólny dzielnik wszystkich pojemności szklanek *)
     if d = 0 then
         0
         (* Jeśli d = 0, to mamy n szklanek o zerowej pojemności, więc
-           bezwysiłkowy sukces, bo wszystko już . *)
+           bezwysiłkowy sukces, bo wszystko już nalane. *)
     else if exists (fun (_,y) -> y mod d <> 0) arr then
         (-1)
         (* Robiąc operacje na szklankach zawsze nalewamy/przelewamy ilość wody
@@ -35,15 +40,17 @@ let przelewanka arr =
         (-1)
         (* Conajmniej jedna szklanka musi być na koniec pełna lub pusta. *)
     else
-    (* Na tym etapie oczekiwany wynik ma sens. Od teraz możemy stwierdzić
-       brak rozwiązania jedynie po sprawdzeniu wszystkich konfiguracji. *)
+    (* Backtracking *)
     let q = ref (Queue.create())
     and visited = Hashtbl.create 424242
-    and min_kr = ref (-1) in
-    let is_good v = for_all2 (fun x (_,y) -> x = y) v arr in
+    and size = Array.map (fun (x,_) -> x) arr
+    and solution = Array.map (fun (_,y) -> y) arr in
+    (* Od wersji 4.13 macierze krotek można rozdzielać zręczniejszą funkcją
+       Array.split, lecz na cele kompatybilności rozdzielę je po kolei. *)
+    let is_good v = v = solution in
     let try_to_add (v,kr) =
-        if !min_kr = (-1) && not (Hashtbl.mem visited v) then begin
-            if is_good v then min_kr := kr else
+        if not (Hashtbl.mem visited v) then begin
+            if is_good v then raise (Solution kr) else
             begin
                 Queue.add (v,kr) !q;
                 Hashtbl.add visited v true
@@ -52,13 +59,12 @@ let przelewanka arr =
     in
     let nalej (v,kr) =
         for i = 0 to n - 1 do
-            let (mx,_) = arr.(i)
-            and cp = copy v in
-            cp.(i) <- mx;
+            let cp = copy v in
+            cp.(i) <- size.(i);
             try_to_add (cp, kr+1)
         done
     in
-    let wylej (v, kr) =
+    let wylej (v,kr) =
         for i = 0 to n - 1 do
             let cp = copy v in
             cp.(i) <- 0;
@@ -68,12 +74,11 @@ let przelewanka arr =
     let przelej (v,kr) =
         for i = 0 to n - 1 do
             for j = 0 to n - 1 do
+                    let cp = copy v in
                 if i <> j then begin
-                    let cp = copy v
-                    and (mx,_) = arr.(i) in
-                    if cp.(i) + cp.(j) > mx then begin
-                        cp.(j) <- cp.(i) + cp.(j) - mx;
-                        cp.(i) <- mx
+                    if cp.(i) + cp.(j) > size.(i) then begin
+                        cp.(j) <- cp.(i) + cp.(j) - size.(i);
+                        cp.(i) <- size.(i)
                         end
                     else begin
                         cp.(i) <- cp.(i) + cp.(j);
@@ -85,7 +90,7 @@ let przelewanka arr =
         done
     in
     let bfs v =
-        if (is_good v) then min_kr := 0
+        if (is_good v) then raise (Solution 0)
         else begin
             nalej (v,0);
             while not (Queue.is_empty !q) do
@@ -94,6 +99,7 @@ let przelewanka arr =
             done
         end
     in
-    bfs (make n 0);
-    !min_kr
+    try (bfs (make n 0); raise NoSolution) with
+    | Solution x -> x
+    | NoSolution -> -1
 
